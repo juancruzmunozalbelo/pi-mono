@@ -149,14 +149,15 @@ impl App {
 
         // Messages widget.
         let messages_widget = MessagesWidget::new(&self.messages, &self.theme);
-        StatefulWidget::render(messages_widget, chunks[0], frame.buffer_mut(), &mut self.messages_state);
+        StatefulWidget::render(
+            messages_widget,
+            chunks[0],
+            frame.buffer_mut(),
+            &mut self.messages_state,
+        );
 
         // Input widget.
-        let input_widget = InputWidget::new(
-            &self.input,
-            &self.theme,
-            self.focus == Focus::Input,
-        );
+        let input_widget = InputWidget::new(&self.input, &self.theme, self.focus == Focus::Input);
         ratatui::widgets::Widget::render(input_widget, chunks[1], frame.buffer_mut());
 
         // Status bar widget.
@@ -311,7 +312,10 @@ impl App {
                 self.finalize_streaming_message();
 
                 // Update token counts from the message.
-                if let pi_ai::Message::Assistant { usage: Some(usage), .. } = &message {
+                if let pi_ai::Message::Assistant {
+                    usage: Some(usage), ..
+                } = &message
+                {
                     self.status.input_tokens += usage.input;
                     self.status.output_tokens += usage.output;
                 }
@@ -433,8 +437,7 @@ impl App {
         if let Some(DisplayMessage::StreamingAssistant(t)) = self.messages.last_mut() {
             *t = text;
         } else {
-            self.messages
-                .push(DisplayMessage::StreamingAssistant(text));
+            self.messages.push(DisplayMessage::StreamingAssistant(text));
         }
     }
 
@@ -445,8 +448,10 @@ impl App {
         if let Some(DisplayMessage::Thinking { text: t, .. }) = self.messages.last_mut() {
             *t = text;
         } else {
-            self.messages
-                .push(DisplayMessage::Thinking { text, collapsed: true });
+            self.messages.push(DisplayMessage::Thinking {
+                text,
+                collapsed: true,
+            });
         }
     }
 

@@ -32,21 +32,13 @@ impl Default for Theme {
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
             tool_output_style: Style::default().fg(Color::Gray),
-            error_style: Style::default()
-                .fg(Color::Red)
-                .add_modifier(Modifier::BOLD),
+            error_style: Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             thinking_style: Style::default().fg(Color::Magenta),
-            status_bar_style: Style::default()
-                .fg(Color::Black)
-                .bg(Color::DarkGray),
+            status_bar_style: Style::default().fg(Color::Black).bg(Color::DarkGray),
             input_style: Style::default().fg(Color::White),
-            code_style: Style::default()
-                .fg(Color::Green)
-                .bg(Color::Rgb(30, 30, 30)),
+            code_style: Style::default().fg(Color::Green).bg(Color::Rgb(30, 30, 30)),
             border_style: Style::default().fg(Color::DarkGray),
-            highlight_style: Style::default()
-                .fg(Color::Black)
-                .bg(Color::Cyan),
+            highlight_style: Style::default().fg(Color::Black).bg(Color::Cyan),
             muted_style: Style::default().fg(Color::DarkGray),
         }
     }

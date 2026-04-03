@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::time::SystemTime;
 use tokio_util::sync::CancellationToken;
 
-use crate::{Tool, ToolResult, error_result, text_result};
+use crate::{error_result, text_result, Tool, ToolResult};
 
 pub struct FindTool;
 

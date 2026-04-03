@@ -4,7 +4,7 @@ use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
 use walkdir::WalkDir;
 
-use crate::{Tool, ToolResult, error_result, text_result};
+use crate::{error_result, text_result, Tool, ToolResult};
 
 pub struct GrepTool;
 
@@ -79,10 +79,7 @@ impl Tool for GrepTool {
 
             // Apply glob filter if specified
             if let Some(glob_pat) = glob_pattern {
-                let file_name = file_path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("");
+                let file_name = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
                 // Match against the full path for glob patterns with path separators
                 let path_str = file_path.to_string_lossy();
                 let matches = if glob_pat.contains('/') || glob_pat.contains('*') {
@@ -156,9 +153,8 @@ impl Tool for GrepTool {
                     }
 
                     if match_count >= limit {
-                        output.push_str(&format!(
-                            "\n[Limit reached: showing first {limit} matches]"
-                        ));
+                        output
+                            .push_str(&format!("\n[Limit reached: showing first {limit} matches]"));
                         break 'outer;
                     }
 

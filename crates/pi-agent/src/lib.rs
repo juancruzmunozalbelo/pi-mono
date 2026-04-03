@@ -35,8 +35,8 @@ mod tests {
     use tokio_util::sync::CancellationToken;
 
     use pi_ai::{
-        ChatEvent, ChatRequest, ChatStream, ContentBlock, Message, Model, ModelCost, ProviderError,
-        StopReason, ThinkingLevel, Usage, ApiType,
+        ApiType, ChatEvent, ChatRequest, ChatStream, ContentBlock, Message, Model, ModelCost,
+        ProviderError, StopReason, ThinkingLevel, Usage,
     };
     use pi_tools::{ToolContent, ToolResult};
 
@@ -95,7 +95,11 @@ mod tests {
         fn schema(&self) -> serde_json::Value {
             serde_json::json!({ "type": "object", "properties": {} })
         }
-        async fn execute(&self, params: serde_json::Value, _cancel: CancellationToken) -> ToolResult {
+        async fn execute(
+            &self,
+            params: serde_json::Value,
+            _cancel: CancellationToken,
+        ) -> ToolResult {
             ToolResult {
                 content: vec![ToolContent::Text {
                     text: format!("echo: {params}"),
@@ -241,9 +245,9 @@ mod tests {
             events.push(ev);
         }
 
-        let tool_end = events
-            .iter()
-            .any(|e| matches!(e, AgentEvent::ToolExecutionEnd { tool_name, .. } if tool_name == "echo"));
+        let tool_end = events.iter().any(
+            |e| matches!(e, AgentEvent::ToolExecutionEnd { tool_name, .. } if tool_name == "echo"),
+        );
         assert!(tool_end, "Should have ToolExecutionEnd for echo");
 
         let state = agent.state().await;
@@ -348,13 +352,19 @@ mod tests {
 
         // Tool end should have error flag (blocked = error result)
         let blocked_end = events.iter().any(|e| {
-            if let AgentEvent::ToolExecutionEnd { result, tool_name, .. } = e {
+            if let AgentEvent::ToolExecutionEnd {
+                result, tool_name, ..
+            } = e
+            {
                 tool_name == "echo" && result.is_error
             } else {
                 false
             }
         });
-        assert!(blocked_end, "Blocked tool should produce error ToolExecutionEnd");
+        assert!(
+            blocked_end,
+            "Blocked tool should produce error ToolExecutionEnd"
+        );
     }
 
     // ─── Test 5: Abort mid-run ────────────────────────────────────────────
@@ -391,8 +401,12 @@ mod tests {
             let events: Vec<Result<ChatEvent, ProviderError>> = vec![
                 Ok(ChatEvent::Start),
                 Ok(ChatEvent::TextStart),
-                Ok(ChatEvent::TextDelta { text: "partial".to_string() }),
-                Ok(ChatEvent::Error { message: "provider blew up mid-stream".to_string() }),
+                Ok(ChatEvent::TextDelta {
+                    text: "partial".to_string(),
+                }),
+                Ok(ChatEvent::Error {
+                    message: "provider blew up mid-stream".to_string(),
+                }),
                 Ok(ChatEvent::Done {
                     stop_reason: StopReason::Error,
                     usage: Usage::default(),
@@ -401,7 +415,9 @@ mod tests {
             ];
             Ok(Box::pin(stream::iter(events)))
         }
-        fn name(&self) -> &str { "error-mid-stream" }
+        fn name(&self) -> &str {
+            "error-mid-stream"
+        }
     }
 
     #[tokio::test]
@@ -434,7 +450,9 @@ mod tests {
 
         // The agent should complete without panicking.
         // It may return Ok or Err — but it must emit AgentEnd.
-        let has_agent_end = events.iter().any(|e| matches!(e, AgentEvent::AgentEnd { .. }));
+        let has_agent_end = events
+            .iter()
+            .any(|e| matches!(e, AgentEvent::AgentEnd { .. }));
         assert!(
             has_agent_end,
             "Agent should emit AgentEnd even after a mid-stream Error event; result={result:?}"
@@ -443,9 +461,17 @@ mod tests {
         // Verify the error was recorded in the assistant message
         let state = agent.state().await;
         let last_msg = state.messages.last();
-        let has_error_recorded = last_msg.map(|m| {
-            matches!(m, Message::Assistant { error_message: Some(_), .. })
-        }).unwrap_or(false);
+        let has_error_recorded = last_msg
+            .map(|m| {
+                matches!(
+                    m,
+                    Message::Assistant {
+                        error_message: Some(_),
+                        ..
+                    }
+                )
+            })
+            .unwrap_or(false);
         assert!(
             has_error_recorded || result.is_err(),
             "Error mid-stream should be recorded in message or propagated as Err"
@@ -465,7 +491,10 @@ mod tests {
         let mut rx = agent.take_event_receiver().unwrap();
 
         let result = agent.prompt("Tell me everything".to_string()).await;
-        assert!(result.is_ok(), "StopReason::Length with no tools should complete ok: {result:?}");
+        assert!(
+            result.is_ok(),
+            "StopReason::Length with no tools should complete ok: {result:?}"
+        );
 
         let mut events = vec![];
         while let Ok(ev) = rx.try_recv() {
@@ -504,7 +533,10 @@ mod tests {
         let mut rx = agent.take_event_receiver().unwrap();
 
         let result = agent.prompt("use ghost_tool".to_string()).await;
-        assert!(result.is_ok(), "Missing tool should not crash agent: {result:?}");
+        assert!(
+            result.is_ok(),
+            "Missing tool should not crash agent: {result:?}"
+        );
 
         let mut events = vec![];
         while let Ok(ev) = rx.try_recv() {
@@ -538,7 +570,10 @@ mod tests {
         let mut rx = agent.take_event_receiver().unwrap();
 
         let result = agent.prompt("run two tools".to_string()).await;
-        assert!(result.is_ok(), "Two consecutive tool turns should succeed: {result:?}");
+        assert!(
+            result.is_ok(),
+            "Two consecutive tool turns should succeed: {result:?}"
+        );
 
         let mut events = vec![];
         while let Ok(ev) = rx.try_recv() {
@@ -592,9 +627,9 @@ mod tests {
         // Should include the steered message in the conversation
         let has_steered = state.messages.iter().any(|m| {
             if let Message::User { content } = m {
-                content.iter().any(|c| {
-                    matches!(c, ContentBlock::Text { text } if text == "Steered!")
-                })
+                content
+                    .iter()
+                    .any(|c| matches!(c, ContentBlock::Text { text } if text == "Steered!"))
             } else {
                 false
             }

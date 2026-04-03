@@ -100,13 +100,12 @@ impl<'a> Widget for ToolOutputWidget<'a> {
             }
 
             let title = format!(" Tool: {} ▼ ", self.tool.tool_name);
-            let paragraph = Paragraph::new(lines)
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .border_style(border_style)
-                        .title(title),
-                );
+            let paragraph = Paragraph::new(lines).block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(border_style)
+                    .title(title),
+            );
 
             Widget::render(paragraph, area, buf);
         }

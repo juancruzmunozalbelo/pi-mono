@@ -40,7 +40,10 @@ fn list_sessions_command() -> Result<()> {
         return Ok(());
     }
 
-    let header = format!("{:<36}  {:<20}  {:>8}  LAST MODIFIED", "ID", "MODEL", "MESSAGES");
+    let header = format!(
+        "{:<36}  {:<20}  {:>8}  LAST MODIFIED",
+        "ID", "MODEL", "MESSAGES"
+    );
     println!("{header}");
     println!("{}", "-".repeat(80));
     for s in sessions {
@@ -57,10 +60,7 @@ fn list_sessions_command() -> Result<()> {
 
 // ─── Provider + tools setup ──────────────────────────────────────────────────
 
-fn setup_provider(
-    cli: &Cli,
-    config: &Config,
-) -> Result<(Box<dyn pi_ai::LlmProvider>, Model)> {
+fn setup_provider(cli: &Cli, config: &Config) -> Result<(Box<dyn pi_ai::LlmProvider>, Model)> {
     // Resolve provider name; CLI --model may contain "provider:model_id"
     let (provider_name, model_id_from_cli) = match cli.model.as_deref() {
         Some(m) if m.contains(':') => {
@@ -308,7 +308,9 @@ async fn run_repl(mut agent: Agent, provider: Arc<dyn pi_ai::LlmProvider>) -> Re
                 error_message: None,
             };
             agent = Agent::new(new_config, new_state);
-            event_rx = agent.take_event_receiver().expect("event receiver available");
+            event_rx = agent
+                .take_event_receiver()
+                .expect("event receiver available");
         }
 
         // Run prompt and drain events concurrently.
@@ -329,9 +331,7 @@ async fn run_repl(mut agent: Agent, provider: Arc<dyn pi_ai::LlmProvider>) -> Re
 }
 
 /// Drain events from the receiver, printing text deltas until AgentEnd.
-async fn drain_events_until_end(
-    event_rx: &mut tokio::sync::mpsc::UnboundedReceiver<AgentEvent>,
-) {
+async fn drain_events_until_end(event_rx: &mut tokio::sync::mpsc::UnboundedReceiver<AgentEvent>) {
     use std::io::Write;
     loop {
         match event_rx.recv().await {

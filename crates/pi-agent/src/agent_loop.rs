@@ -9,10 +9,10 @@ use tokio_util::sync::CancellationToken;
 use pi_ai::{ChatEvent, ChatRequest, ContentBlock, Message, StopReason, ToolDefinition, Usage};
 use pi_tools::{ToolContent, ToolResult};
 
-use crate::AgentError;
 use crate::event::AgentEvent;
 use crate::hooks::{AfterToolCallContext, BeforeToolCallContext};
 use crate::state::Agent;
+use crate::AgentError;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,7 +55,12 @@ async fn stream_to_message(
                 break;
             }
             Ok(event) => {
-                emit(tx, AgentEvent::MessageUpdate { event: event.clone() });
+                emit(
+                    tx,
+                    AgentEvent::MessageUpdate {
+                        event: event.clone(),
+                    },
+                );
 
                 match event {
                     ChatEvent::TextDelta { text } => text_buf.push_str(&text),
@@ -136,7 +141,12 @@ fn extract_tool_calls(msg: &Message) -> Vec<(String, String, serde_json::Value)>
     let mut out = Vec::new();
     if let Message::Assistant { content, .. } = msg {
         for block in content {
-            if let ContentBlock::ToolCall { id, name, arguments } = block {
+            if let ContentBlock::ToolCall {
+                id,
+                name,
+                arguments,
+            } = block
+            {
                 out.push((id.clone(), name.clone(), arguments.clone()));
             }
         }
@@ -191,8 +201,8 @@ async fn execute_tools_sequential(
         }
 
         // Find and execute the tool
-        let result = execute_single_tool(&name, args, &agent.config.tools, agent.cancel.clone())
-            .await;
+        let result =
+            execute_single_tool(&name, args, &agent.config.tools, agent.cancel.clone()).await;
 
         // after_tool_call hook
         let result = apply_after_hook(&agent.config.hooks, id.clone(), name.clone(), result).await;
@@ -310,10 +320,7 @@ async fn apply_after_hook(
 }
 
 /// Push tool results into state and emit MessageStart/MessageEnd per result.
-async fn push_tool_results(
-    results: Vec<(String, String, ToolResult)>,
-    agent: &Agent,
-) {
+async fn push_tool_results(results: Vec<(String, String, ToolResult)>, agent: &Agent) {
     let mut state = agent.state.write().await;
     for (id, name, result) in results {
         let content_blocks: Vec<ContentBlock> = result
@@ -332,12 +339,11 @@ async fn push_tool_results(
         state.messages.push(msg.clone());
         emit(
             &agent.event_tx,
-            AgentEvent::MessageStart { message: msg.clone() },
+            AgentEvent::MessageStart {
+                message: msg.clone(),
+            },
         );
-        emit(
-            &agent.event_tx,
-            AgentEvent::MessageEnd { message: msg },
-        );
+        emit(&agent.event_tx, AgentEvent::MessageEnd { message: msg });
     }
 }
 
@@ -381,12 +387,11 @@ pub async fn run_loop(agent: &mut Agent) -> Result<(), AgentError> {
                     state.messages.push(msg.clone());
                     emit(
                         &agent.event_tx,
-                        AgentEvent::MessageStart { message: msg.clone() },
+                        AgentEvent::MessageStart {
+                            message: msg.clone(),
+                        },
                     );
-                    emit(
-                        &agent.event_tx,
-                        AgentEvent::MessageEnd { message: msg },
-                    );
+                    emit(&agent.event_tx, AgentEvent::MessageEnd { message: msg });
                 }
             }
 

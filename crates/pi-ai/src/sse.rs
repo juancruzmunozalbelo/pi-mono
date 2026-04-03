@@ -166,8 +166,7 @@ where
                         Ok(s) => this.buffer.push_str(s),
                         Err(_) => {
                             // Best-effort: use lossy conversion so we never panic.
-                            this.buffer
-                                .push_str(&String::from_utf8_lossy(&bytes));
+                            this.buffer.push_str(&String::from_utf8_lossy(&bytes));
                         }
                     }
                 }
@@ -185,9 +184,7 @@ mod tests {
     use tokio_stream::iter as stream_iter;
 
     /// Convert a `&str` slice into the stream type our parser expects.
-    fn make_stream(
-        chunks: Vec<&'static str>,
-    ) -> impl Stream<Item = Result<Bytes, reqwest::Error>> {
+    fn make_stream(chunks: Vec<&'static str>) -> impl Stream<Item = Result<Bytes, reqwest::Error>> {
         stream_iter(
             chunks
                 .into_iter()

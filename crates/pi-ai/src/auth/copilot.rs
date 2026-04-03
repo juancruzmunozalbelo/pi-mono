@@ -272,8 +272,7 @@ fn base64_url_decode(s: &str) -> Result<Vec<u8>, ()> {
 }
 
 fn decode_base64_standard(s: &str) -> Result<Vec<u8>, ()> {
-    const CHARS: &[u8] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
     let mut out = Vec::with_capacity(s.len() * 3 / 4);
     let bytes: Vec<u8> = s
@@ -313,9 +312,7 @@ fn extract_proxy_ep(jwt_payload_text: &str) -> Option<String> {
         // Skip past `":"` or `=`
         let value_start = rest.find(|c| !matches!(c, ':' | '"' | ' ' | '='))?;
         let value = &rest[value_start..];
-        let end = value
-            .find(['"', ',', '}', ';', ' '])
-            .unwrap_or(value.len());
+        let end = value.find(['"', ',', '}', ';', ' ']).unwrap_or(value.len());
         let host = value[..end].trim().to_string();
         if !host.is_empty() {
             return Some(host);
@@ -441,7 +438,8 @@ mod tests {
 
     #[test]
     fn extract_proxy_ep_finds_value() {
-        let payload = r#"{"proxy-ep":"proxy.individual.githubcopilot.com","sku":"copilot_for_business"}"#;
+        let payload =
+            r#"{"proxy-ep":"proxy.individual.githubcopilot.com","sku":"copilot_for_business"}"#;
         let result = extract_proxy_ep(payload);
         assert_eq!(
             result.as_deref(),

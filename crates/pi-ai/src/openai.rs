@@ -41,7 +41,9 @@ pub fn messages_to_openai(messages: &[Message], system_prompt: Option<&str>) -> 
                 let parts: Vec<Value> = content
                     .iter()
                     .filter_map(|block| match block {
-                        ContentBlock::Text { text } => Some(json!({ "type": "text", "text": text })),
+                        ContentBlock::Text { text } => {
+                            Some(json!({ "type": "text", "text": text }))
+                        }
                         ContentBlock::Image { data, mime_type } => Some(json!({
                             "type": "image_url",
                             "image_url": { "url": format!("data:{mime_type};base64,{data}") }
@@ -79,7 +81,11 @@ pub fn messages_to_openai(messages: &[Message], system_prompt: Option<&str>) -> 
                 let tool_calls: Vec<Value> = content
                     .iter()
                     .filter_map(|b| match b {
-                        ContentBlock::ToolCall { id, name, arguments } => Some(json!({
+                        ContentBlock::ToolCall {
+                            id,
+                            name,
+                            arguments,
+                        } => Some(json!({
                             "id": id,
                             "type": "function",
                             "function": {
@@ -148,7 +154,11 @@ enum CurrentBlock {
     None,
     Text,
     Thinking,
-    ToolCall { id: String, name: String, args_buf: String },
+    ToolCall {
+        id: String,
+        name: String,
+        args_buf: String,
+    },
 }
 
 // ─── LlmProvider impl ────────────────────────────────────────────────────────
@@ -215,9 +225,7 @@ impl LlmProvider for OpenAiCompletionsProvider {
         }
         if !status.is_success() {
             let body_text = response.text().await.unwrap_or_default();
-            return Err(ProviderError::Other(format!(
-                "HTTP {status}: {body_text}"
-            )));
+            return Err(ProviderError::Other(format!("HTTP {status}: {body_text}")));
         }
 
         let byte_stream = response.bytes_stream();
@@ -345,7 +353,10 @@ fn parse_sse_chunk(
         for tc in tool_calls {
             let id = tc["id"].as_str().unwrap_or("").to_owned();
             let name = tc["function"]["name"].as_str().unwrap_or("").to_owned();
-            let args_delta = tc["function"]["arguments"].as_str().unwrap_or("").to_owned();
+            let args_delta = tc["function"]["arguments"]
+                .as_str()
+                .unwrap_or("")
+                .to_owned();
 
             if !id.is_empty() || !name.is_empty() {
                 events.push(Ok(RawChatEvent::ToolCallHeader { id, name }));
@@ -363,12 +374,25 @@ fn parse_sse_chunk(
 
 #[derive(Debug)]
 enum RawChatEvent {
-    TextDelta { text: String },
-    ThinkingDelta { text: String },
-    ToolCallHeader { id: String, name: String },
-    ToolCallArgsDelta { args_delta: String },
+    TextDelta {
+        text: String,
+    },
+    ThinkingDelta {
+        text: String,
+    },
+    ToolCallHeader {
+        id: String,
+        name: String,
+    },
+    ToolCallArgsDelta {
+        args_delta: String,
+    },
     FinishReason(StopReason),
-    Done { stop_reason: StopReason, usage: Usage, cost: Cost },
+    Done {
+        stop_reason: StopReason,
+        usage: Usage,
+        cost: Cost,
+    },
 }
 
 // ─── Block state machine ─────────────────────────────────────────────────────
@@ -411,7 +435,10 @@ where
     }
 
     /// Close the current block (emit End event) and transition.
-    fn close_current(current: &mut CurrentBlock, pending: &mut VecDeque<Result<ChatEvent, ProviderError>>) {
+    fn close_current(
+        current: &mut CurrentBlock,
+        pending: &mut VecDeque<Result<ChatEvent, ProviderError>>,
+    ) {
         match current {
             CurrentBlock::None => {}
             CurrentBlock::Text => {
@@ -424,8 +451,8 @@ where
             }
             CurrentBlock::ToolCall { id, name, args_buf } => {
                 // Emit ToolCallDone with parsed arguments.
-                let arguments: serde_json::Value = serde_json::from_str(args_buf)
-                    .unwrap_or(serde_json::Value::Null);
+                let arguments: serde_json::Value =
+                    serde_json::from_str(args_buf).unwrap_or(serde_json::Value::Null);
                 pending.push_back(Ok(ChatEvent::ToolCallDone {
                     id: id.clone(),
                     name: name.clone(),
@@ -714,7 +741,11 @@ mod tests {
     #[test]
     fn empty_message_list_produces_only_system_if_present() {
         let result = messages_to_openai(&[], Some("Be helpful"));
-        assert_eq!(result.len(), 1, "Empty messages with system prompt should produce 1 entry");
+        assert_eq!(
+            result.len(),
+            1,
+            "Empty messages with system prompt should produce 1 entry"
+        );
         assert_eq!(result[0]["role"], "system");
 
         let result_no_sys = messages_to_openai(&[], None);
@@ -735,7 +766,11 @@ mod tests {
             error_message: None,
         }];
         let result = messages_to_openai(&messages, None);
-        assert_eq!(result.len(), 1, "Assistant with empty content should still produce a message");
+        assert_eq!(
+            result.len(),
+            1,
+            "Assistant with empty content should still produce a message"
+        );
         assert_eq!(result[0]["role"], "assistant");
         // Content should be empty string (no text blocks)
         assert_eq!(
@@ -754,7 +789,11 @@ mod tests {
             is_error: false,
         }];
         let result = messages_to_openai(&messages, None);
-        assert_eq!(result.len(), 1, "ToolResult with empty content should still produce a message");
+        assert_eq!(
+            result.len(),
+            1,
+            "ToolResult with empty content should still produce a message"
+        );
         assert_eq!(result[0]["role"], "tool");
         assert_eq!(result[0]["tool_call_id"], "tc-1");
         // Content should be empty string
@@ -778,7 +817,8 @@ mod tests {
         }];
         let result = messages_to_openai(&messages, None);
         assert_eq!(result[0]["role"], "user");
-        let content = result[0]["content"].as_array()
+        let content = result[0]["content"]
+            .as_array()
             .expect("Mixed text+image user message should produce an array content");
         assert_eq!(content.len(), 2, "Should have 2 content blocks");
         assert_eq!(content[0]["type"], "text");
@@ -798,7 +838,8 @@ mod tests {
         }];
         let result = messages_to_openai(&messages, None);
         let tc = &result[0]["tool_calls"][0];
-        let args_str = tc["function"]["arguments"].as_str()
+        let args_str = tc["function"]["arguments"]
+            .as_str()
             .expect("arguments should be a string");
         // Re-parse to verify it's valid JSON and contains full data
         let reparsed: Value = serde_json::from_str(args_str)

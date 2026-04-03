@@ -38,10 +38,7 @@ impl<'a> Widget for StatusBarWidget<'a> {
         let left = format!(" {}{}", self.state.model_name, streaming);
 
         // Center: token counts.
-        let center = format!(
-            "↑{} ↓{}",
-            self.state.input_tokens, self.state.output_tokens
-        );
+        let center = format!("↑{} ↓{}", self.state.input_tokens, self.state.output_tokens);
 
         // Right: session ID.
         let right = match &self.state.session_id {

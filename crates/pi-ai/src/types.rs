@@ -22,10 +22,7 @@ pub enum ContentBlock {
         arguments: serde_json::Value,
     },
     #[serde(rename = "image")]
-    Image {
-        data: String,
-        mime_type: String,
-    },
+    Image { data: String, mime_type: String },
 }
 
 /// A message in the conversation

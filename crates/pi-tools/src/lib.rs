@@ -39,11 +39,7 @@ pub trait Tool: Send + Sync {
     fn name(&self) -> &str;
     fn description(&self) -> &str;
     fn schema(&self) -> serde_json::Value;
-    async fn execute(
-        &self,
-        params: serde_json::Value,
-        cancel: CancellationToken,
-    ) -> ToolResult;
+    async fn execute(&self, params: serde_json::Value, cancel: CancellationToken) -> ToolResult;
 }
 
 /// Helper to create a text ToolResult

@@ -11,10 +11,10 @@ pub mod copilot;
 pub mod credentials;
 
 pub use copilot::{
-    CopilotAuthManager, CopilotToken, DeviceFlowState, exchange_copilot_token, poll_for_token,
-    start_device_flow,
+    exchange_copilot_token, poll_for_token, start_device_flow, CopilotAuthManager, CopilotToken,
+    DeviceFlowState,
 };
-pub use credentials::{StoredCredentials, credentials_path, load_credentials, save_credentials};
+pub use credentials::{credentials_path, load_credentials, save_credentials, StoredCredentials};
 
 /// Errors that can occur during authentication.
 #[derive(Debug, thiserror::Error)]

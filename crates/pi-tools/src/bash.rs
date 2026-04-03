@@ -3,7 +3,7 @@ use serde::Deserialize;
 use tokio::io::AsyncReadExt;
 use tokio_util::sync::CancellationToken;
 
-use crate::{Tool, ToolResult, error_result, text_result};
+use crate::{error_result, text_result, Tool, ToolResult};
 
 pub struct BashTool;
 
@@ -112,9 +112,7 @@ impl Tool for BashTool {
         // Tail truncation: keep last MAX_LINES lines or MAX_BYTES
         let truncated = tail_truncate(&output_str);
 
-        text_result(format!(
-            "Exit code: {exit_code}\n{truncated}"
-        ))
+        text_result(format!("Exit code: {exit_code}\n{truncated}"))
     }
 }
 
@@ -148,9 +146,7 @@ fn tail_truncate(s: &str) -> String {
         ));
     }
     if truncated_bytes {
-        prefix.push_str(&format!(
-            "[Truncated: output exceeded {MAX_BYTES} bytes]\n"
-        ));
+        prefix.push_str(&format!("[Truncated: output exceeded {MAX_BYTES} bytes]\n"));
     }
 
     format!("{prefix}{output}")

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
 
-use crate::{Tool, ToolResult, error_result, text_result};
+use crate::{error_result, text_result, Tool, ToolResult};
 
 pub struct EditFileTool;
 
@@ -51,9 +51,7 @@ impl Tool for EditFileTool {
         match count {
             0 => return error_result("old_string not found in file"),
             n if n > 1 => {
-                return error_result(format!(
-                    "old_string found {n} times, must be unique"
-                ))
+                return error_result(format!("old_string found {n} times, must be unique"))
             }
             _ => {}
         }
@@ -189,7 +187,10 @@ mod tests {
         });
         let result = tool.execute(params, CancellationToken::new()).await;
 
-        assert!(!result.is_error, "Edit with regex-special chars should succeed as literal match");
+        assert!(
+            !result.is_error,
+            "Edit with regex-special chars should succeed as literal match"
+        );
         let content = std::fs::read_to_string(tmp.path()).unwrap();
         assert!(
             content.contains("$9.99 (sale)"),
@@ -265,7 +266,10 @@ mod tests {
         });
         let result = tool.execute(params, CancellationToken::new()).await;
 
-        assert!(!result.is_error, "Edit replacing entire file content should succeed");
+        assert!(
+            !result.is_error,
+            "Edit replacing entire file content should succeed"
+        );
         let new_content = std::fs::read_to_string(tmp.path()).unwrap();
         assert_eq!(
             new_content, "brand new content\n",

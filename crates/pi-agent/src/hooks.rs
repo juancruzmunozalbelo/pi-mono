@@ -46,18 +46,15 @@ pub struct AfterToolCallResult {
 // ─── Hooks bundle ─────────────────────────────────────────────────────────────
 
 /// Hook function that runs before a tool call.
-pub type BeforeToolCallHook = Box<
-    dyn Fn(BeforeToolCallContext) -> BoxFuture<Option<BeforeToolCallResult>> + Send + Sync,
->;
+pub type BeforeToolCallHook =
+    Box<dyn Fn(BeforeToolCallContext) -> BoxFuture<Option<BeforeToolCallResult>> + Send + Sync>;
 
 /// Hook function that runs after a tool call.
-pub type AfterToolCallHook = Box<
-    dyn Fn(AfterToolCallContext) -> BoxFuture<Option<AfterToolCallResult>> + Send + Sync,
->;
+pub type AfterToolCallHook =
+    Box<dyn Fn(AfterToolCallContext) -> BoxFuture<Option<AfterToolCallResult>> + Send + Sync>;
 
 /// Hook function that transforms the context before sending to the provider.
-pub type TransformContextHook =
-    Box<dyn Fn(Vec<Message>) -> BoxFuture<Vec<Message>> + Send + Sync>;
+pub type TransformContextHook = Box<dyn Fn(Vec<Message>) -> BoxFuture<Vec<Message>> + Send + Sync>;
 
 /// Collection of optional lifecycle hooks for an agent.
 #[derive(Default)]

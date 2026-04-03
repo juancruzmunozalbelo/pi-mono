@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use tokio_util::sync::CancellationToken;
 
-use crate::{Tool, ToolResult, error_result, text_result};
+use crate::{error_result, text_result, Tool, ToolResult};
 
 pub struct ReadFileTool;
 
@@ -67,9 +67,7 @@ impl Tool for ReadFileTool {
             let line_num = start + i + 1; // 1-indexed
             let entry = format!("{line_num}\t{line}\n");
             if bytes + entry.len() > MAX_BYTES {
-                output.push_str(&format!(
-                    "\n[Truncated: output exceeded {MAX_BYTES} bytes]"
-                ));
+                output.push_str(&format!("\n[Truncated: output exceeded {MAX_BYTES} bytes]"));
                 break;
             }
             bytes += entry.len();
@@ -153,7 +151,10 @@ mod tests {
         let params = serde_json::json!({ "path": tmp.path().to_str().unwrap() });
         let result = tool.execute(params, CancellationToken::new()).await;
 
-        assert!(!result.is_error, "Reading an empty file should not be an error");
+        assert!(
+            !result.is_error,
+            "Reading an empty file should not be an error"
+        );
         let text = match &result.content[0] {
             crate::ToolContent::Text { text } => text.clone(),
         };

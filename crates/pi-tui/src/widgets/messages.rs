@@ -15,7 +15,10 @@ use crate::theme::Theme;
 pub enum DisplayMessage {
     User(String),
     Assistant(String),
-    ToolCall { name: String, id: String },
+    ToolCall {
+        name: String,
+        id: String,
+    },
     ToolResult {
         name: String,
         output: String,
@@ -110,10 +113,7 @@ impl<'a> MessagesWidget<'a> {
                             first_line.to_string()
                         };
                         lines.push(Line::from(vec![
-                            Span::styled(
-                                format!("[{}] ▶ ", name),
-                                self.theme.tool_name_style,
-                            ),
+                            Span::styled(format!("[{}] ▶ ", name), self.theme.tool_name_style),
                             Span::styled(truncated, style),
                         ]));
                     } else {
@@ -140,9 +140,7 @@ impl<'a> MessagesWidget<'a> {
                     } else {
                         lines.push(Line::from(vec![Span::styled(
                             "[Reasoning] ▼".to_string(),
-                            self.theme
-                                .thinking_style
-                                .add_modifier(Modifier::BOLD),
+                            self.theme.thinking_style.add_modifier(Modifier::BOLD),
                         )]));
                         for think_line in text.lines() {
                             lines.push(Line::from(vec![Span::styled(
@@ -271,9 +269,7 @@ fn parse_inline(text: &str, theme: &Theme) -> Line<'static> {
                 let bold_text = after_open[..end].to_string();
                 spans.push(Span::styled(
                     bold_text,
-                    theme
-                        .assistant_style
-                        .add_modifier(Modifier::BOLD),
+                    theme.assistant_style.add_modifier(Modifier::BOLD),
                 ));
                 remaining = &after_open[end + 2..];
                 continue;

@@ -30,8 +30,7 @@ impl InputState {
     pub fn backspace(&mut self) {
         if self.cursor > 0 {
             // Step back one character.
-            let prev = self
-                .text[..self.cursor]
+            let prev = self.text[..self.cursor]
                 .char_indices()
                 .last()
                 .map(|(i, _)| i)
@@ -51,8 +50,7 @@ impl InputState {
     /// Move cursor left one character.
     pub fn move_left(&mut self) {
         if self.cursor > 0 {
-            self.cursor = self
-                .text[..self.cursor]
+            self.cursor = self.text[..self.cursor]
                 .char_indices()
                 .last()
                 .map(|(i, _)| i)
@@ -78,7 +76,10 @@ impl InputState {
     /// Move cursor to the end of the current line.
     pub fn move_end(&mut self) {
         let after = &self.text[self.cursor..];
-        let line_end = after.find('\n').map(|i| self.cursor + i).unwrap_or(self.text.len());
+        let line_end = after
+            .find('\n')
+            .map(|i| self.cursor + i)
+            .unwrap_or(self.text.len());
         self.cursor = line_end;
     }
 

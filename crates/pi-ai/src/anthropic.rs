@@ -36,7 +36,10 @@ pub fn messages_to_anthropic(messages: &[Message]) -> Vec<Value> {
     while i < messages.len() {
         match &messages[i] {
             Message::User { content } => {
-                let blocks: Vec<Value> = content.iter().filter_map(content_block_to_anthropic).collect();
+                let blocks: Vec<Value> = content
+                    .iter()
+                    .filter_map(content_block_to_anthropic)
+                    .collect();
                 let value = if blocks.len() == 1 {
                     if let Some(Value::Object(ref o)) = blocks.first() {
                         if let Some(Value::String(t)) = o.get("text") {
@@ -148,7 +151,11 @@ fn assistant_content_block_to_anthropic(block: &ContentBlock) -> Option<Value> {
                 }))
             }
         }
-        ContentBlock::ToolCall { id, name, arguments } => Some(json!({
+        ContentBlock::ToolCall {
+            id,
+            name,
+            arguments,
+        } => Some(json!({
             "type": "tool_use",
             "id": id,
             "name": name,
@@ -242,9 +249,7 @@ impl LlmProvider for AnthropicMessagesProvider {
         }
         if !status.is_success() {
             let body_text = response.text().await.unwrap_or_default();
-            return Err(ProviderError::Other(format!(
-                "HTTP {status}: {body_text}"
-            )));
+            return Err(ProviderError::Other(format!("HTTP {status}: {body_text}")));
         }
 
         let byte_stream = response.bytes_stream();
@@ -255,7 +260,13 @@ impl LlmProvider for AnthropicMessagesProvider {
         let cache_read_cost = request.model.cost.cache_read;
         let cache_write_cost = request.model.cost.cache_write;
 
-        let stream = AnthropicStreamParser::new(sse, input_cost, output_cost, cache_read_cost, cache_write_cost);
+        let stream = AnthropicStreamParser::new(
+            sse,
+            input_cost,
+            output_cost,
+            cache_read_cost,
+            cache_write_cost,
+        );
         Ok(Box::pin(stream))
     }
 }
@@ -315,7 +326,13 @@ impl<S> AnthropicStreamParser<S>
 where
     S: futures::Stream<Item = Result<crate::sse::SseEvent, crate::sse::SseError>>,
 {
-    fn new(inner: S, input_cost: f64, output_cost: f64, cache_read_cost: f64, cache_write_cost: f64) -> Self {
+    fn new(
+        inner: S,
+        input_cost: f64,
+        output_cost: f64,
+        cache_read_cost: f64,
+        cache_write_cost: f64,
+    ) -> Self {
         Self {
             inner,
             current_block: AnthropicBlock::None,
@@ -351,10 +368,14 @@ where
                 // Capture initial usage (input tokens).
                 if let Some(u) = v["message"]["usage"].as_object() {
                     usage.input = u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
-                    usage.cache_read =
-                        u.get("cache_read_input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
-                    usage.cache_write =
-                        u.get("cache_creation_input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+                    usage.cache_read = u
+                        .get("cache_read_input_tokens")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+                    usage.cache_write = u
+                        .get("cache_creation_input_tokens")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
                 }
                 pending.push_back(Ok(ChatEvent::Start));
             }
@@ -720,7 +741,11 @@ mod tests {
         }];
         let result = messages_to_anthropic(&messages);
         let blocks = result[0]["content"].as_array().unwrap();
-        assert_eq!(blocks.len(), 2, "Thinking block should be included in assistant content");
+        assert_eq!(
+            blocks.len(),
+            2,
+            "Thinking block should be included in assistant content"
+        );
         assert_eq!(blocks[0]["type"], "thinking");
         assert_eq!(blocks[0]["thinking"], "Let me reason...");
         assert_eq!(blocks[0]["signature"], "sig123");
@@ -730,20 +755,22 @@ mod tests {
     #[test]
     fn redacted_thinking_block_in_assistant() {
         let messages = vec![Message::Assistant {
-            content: vec![
-                ContentBlock::Thinking {
-                    thinking: String::new(),
-                    signature: None,
-                    redacted: true,
-                },
-            ],
+            content: vec![ContentBlock::Thinking {
+                thinking: String::new(),
+                signature: None,
+                redacted: true,
+            }],
             stop_reason: None,
             usage: None,
             error_message: None,
         }];
         let result = messages_to_anthropic(&messages);
         let blocks = result[0]["content"].as_array().unwrap();
-        assert_eq!(blocks.len(), 1, "Redacted thinking block should be included");
+        assert_eq!(
+            blocks.len(),
+            1,
+            "Redacted thinking block should be included"
+        );
         assert_eq!(
             blocks[0]["type"], "redacted_thinking",
             "Redacted thinking should use 'redacted_thinking' type"
@@ -808,6 +835,9 @@ mod tests {
         assert_eq!(result[0]["role"], "user");
         assert_eq!(result[1]["role"], "user");
         assert_eq!(result[0]["content"], "first user message");
-        assert_eq!(result[1]["content"], "second user message (no assistant between)");
+        assert_eq!(
+            result[1]["content"],
+            "second user message (no assistant between)"
+        );
     }
 }
