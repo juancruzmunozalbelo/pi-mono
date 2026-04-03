@@ -1,0 +1,38 @@
+name: Rust CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    name: CI (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry and target dir
+        uses: Swatinem/rust-cache@v2
+
+      - name: cargo check
+        run: cargo check --workspace
+
+      - name: cargo clippy
+        run: cargo clippy --workspace -- -D warnings
+
+      - name: cargo test
+        run: cargo test --workspace
+
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
