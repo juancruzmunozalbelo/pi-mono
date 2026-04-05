@@ -5,7 +5,7 @@ use ratatui::{
     layout::Rect,
     style::Modifier,
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Widget},
+    widgets::{Block, Borders, Paragraph, Widget, Wrap},
 };
 
 use crate::theme::Theme;
@@ -135,6 +135,24 @@ impl<'a> Widget for InputWidget<'a> {
 
         // Build lines with cursor marker.
         let text_with_cursor = build_text_with_cursor(&self.state.text, self.state.cursor);
+        let total_lines = text_with_cursor.len() as u16;
+
+        // Find which line the cursor is on
+        let cursor_line = self.state.text[..self.state.cursor]
+            .chars()
+            .filter(|c| *c == '\n')
+            .count() as u16;
+
+        // Auto-scroll to keep cursor visible
+        let visible_height = area.height.saturating_sub(2); // borders
+        let scroll_offset = if cursor_line >= visible_height {
+            cursor_line.saturating_sub(visible_height) + 1
+        } else if total_lines > visible_height {
+            // If we're at the end, show last lines
+            total_lines.saturating_sub(visible_height)
+        } else {
+            0
+        };
 
         let paragraph = Paragraph::new(text_with_cursor)
             .block(
@@ -143,7 +161,9 @@ impl<'a> Widget for InputWidget<'a> {
                     .border_style(border_style)
                     .title(title),
             )
-            .style(self.theme.input_style);
+            .style(self.theme.input_style)
+            .wrap(Wrap { trim: false })
+            .scroll((scroll_offset, 0));
 
         Widget::render(paragraph, area, buf);
     }

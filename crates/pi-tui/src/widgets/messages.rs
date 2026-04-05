@@ -36,19 +36,36 @@ pub enum DisplayMessage {
 }
 
 /// State held by the messages widget (scroll position, focused item).
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MessagesState {
     pub scroll_offset: u16,
     pub focused_item: Option<usize>,
+    /// When true, auto-scroll to bottom on new content. Disabled when user scrolls up.
+    pub auto_scroll: bool,
+}
+
+impl Default for MessagesState {
+    fn default() -> Self {
+        Self {
+            scroll_offset: 0,
+            focused_item: None,
+            auto_scroll: true,
+        }
+    }
 }
 
 impl MessagesState {
     pub fn scroll_up(&mut self, amount: u16) {
         self.scroll_offset = self.scroll_offset.saturating_sub(amount);
+        self.auto_scroll = false; // user scrolled up → disable auto-scroll
     }
 
     pub fn scroll_down(&mut self, amount: u16, max: u16) {
         self.scroll_offset = (self.scroll_offset + amount).min(max);
+        // Re-enable auto-scroll if we're near the bottom
+        if self.scroll_offset >= max.saturating_sub(2) {
+            self.auto_scroll = true;
+        }
     }
 }
 
@@ -209,13 +226,11 @@ impl<'a> StatefulWidget for MessagesWidget<'a> {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let lines = self.build_lines();
-        let total_lines = lines.len() as u16;
 
-        // Clamp scroll to valid range.
-        let visible = area.height.saturating_sub(2); // account for borders
-        let max_scroll = total_lines.saturating_sub(visible);
-        if state.scroll_offset > max_scroll {
-            state.scroll_offset = max_scroll;
+        // Auto-scroll: set to a very large value — the Paragraph widget
+        // internally clamps scroll to valid range after wrapping.
+        if state.auto_scroll {
+            state.scroll_offset = u16::MAX;
         }
 
         let paragraph = Paragraph::new(lines)

@@ -120,7 +120,11 @@ async fn stream_to_message(
         content.push(ContentBlock::Text { text: text_buf });
     }
     for (id, name, args_str) in tool_calls {
-        let arguments = serde_json::from_str(&args_str).unwrap_or(serde_json::Value::Null);
+        let arguments = if args_str.is_empty() {
+            serde_json::Value::Object(Default::default())
+        } else {
+            serde_json::from_str(&args_str).unwrap_or(serde_json::Value::Object(Default::default()))
+        };
         content.push(ContentBlock::ToolCall {
             id,
             name,
