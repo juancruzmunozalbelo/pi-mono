@@ -281,16 +281,26 @@ fn create_tools(sub_agent_config: Option<Arc<SubAgentConfig>>) -> Vec<Arc<dyn pi
 
 fn build_agent(cli: &Cli, config: &Config) -> Result<Agent> {
     let (provider, model) = setup_provider(cli, config)?;
+    let provider_arc: Arc<dyn pi_ai::LlmProvider> = Arc::from(provider);
 
     let basic_tools = create_basic_tools();
     let sub_config = setup_sub_agent_config(cli, config, basic_tools.clone());
     let tools = create_tools(sub_config);
 
+    let compaction_hook = pi_agent::compaction::make_compaction_hook(
+        Arc::clone(&provider_arc),
+        model.clone(),
+        pi_agent::compaction::CompactionConfig::default(),
+    );
+
     let agent_config = AgentConfig {
-        provider: Arc::from(provider),
+        provider: provider_arc,
         tools,
         tool_execution_mode: ToolExecutionMode::Sequential,
-        hooks: pi_agent::Hooks::default(),
+        hooks: pi_agent::Hooks {
+            transform_context: Some(compaction_hook),
+            ..Default::default()
+        },
     };
 
     // Apply guidance based on provider
@@ -375,11 +385,20 @@ async fn run_interactive(cli: &Cli, config: &Config) -> Result<()> {
     let sub_config = setup_sub_agent_config(cli, config, basic_tools.clone());
     let tools = create_tools(sub_config);
 
+    let compaction_hook = pi_agent::compaction::make_compaction_hook(
+        Arc::clone(&provider),
+        model.clone(),
+        pi_agent::compaction::CompactionConfig::default(),
+    );
+
     let agent_config = AgentConfig {
         provider: Arc::clone(&provider),
         tools,
         tool_execution_mode: ToolExecutionMode::Sequential,
-        hooks: pi_agent::Hooks::default(),
+        hooks: pi_agent::Hooks {
+            transform_context: Some(compaction_hook),
+            ..Default::default()
+        },
     };
     let agent_state = AgentState {
         messages: vec![],

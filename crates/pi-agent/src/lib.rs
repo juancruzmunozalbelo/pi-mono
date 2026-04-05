@@ -1,6 +1,7 @@
 //! Pi agent — Agentic loop and conversation orchestration.
 
 pub mod agent_loop;
+pub mod compaction;
 pub mod event;
 pub mod hooks;
 pub mod state;

@@ -9,6 +9,7 @@ use ratatui::{
 };
 
 use crate::theme::Theme;
+use crate::widgets::markdown;
 
 /// A single displayable message in the conversation view.
 #[derive(Debug, Clone)]
@@ -79,8 +80,9 @@ impl<'a> MessagesWidget<'a> {
                 }
 
                 DisplayMessage::Assistant(text) | DisplayMessage::StreamingAssistant(text) => {
-                    let rendered = render_markdown(text, self.theme);
-                    for line in rendered {
+                    let renderer = markdown::MarkdownRenderer::new(self.theme);
+                    let md_lines = renderer.render(text, 80);
+                    for line in md_lines {
                         lines.push(line);
                     }
                     lines.push(Line::default());
@@ -192,109 +194,4 @@ impl<'a> StatefulWidget for MessagesWidget<'a> {
 
         Widget::render(paragraph, area, buf);
     }
-}
-
-/// Simple markdown renderer that converts common markdown to styled Lines.
-pub fn render_markdown(text: &str, theme: &Theme) -> Vec<Line<'static>> {
-    let mut lines: Vec<Line<'static>> = Vec::new();
-    let mut in_code_block = false;
-    let mut code_lang = String::new();
-
-    for raw_line in text.lines() {
-        // Fenced code block detection.
-        if raw_line.starts_with("```") {
-            if in_code_block {
-                // End of code block.
-                lines.push(Line::from(vec![Span::styled(
-                    "─".repeat(40),
-                    theme.border_style,
-                )]));
-                in_code_block = false;
-                code_lang.clear();
-            } else {
-                // Start of code block.
-                in_code_block = true;
-                code_lang = raw_line.trim_start_matches('`').to_string();
-                let label = if code_lang.is_empty() {
-                    " code ".to_string()
-                } else {
-                    format!(" {} ", code_lang)
-                };
-                lines.push(Line::from(vec![Span::styled(
-                    format!("┌──{}──┐", label),
-                    theme.border_style,
-                )]));
-            }
-            continue;
-        }
-
-        if in_code_block {
-            lines.push(Line::from(vec![Span::styled(
-                format!("│ {}", raw_line),
-                theme.code_style,
-            )]));
-            continue;
-        }
-
-        // Normal line — parse inline markdown.
-        lines.push(parse_inline(raw_line, theme));
-    }
-
-    // If we ended inside a code block, close it.
-    if in_code_block {
-        lines.push(Line::from(vec![Span::styled(
-            "─".repeat(40),
-            theme.border_style,
-        )]));
-    }
-
-    lines
-}
-
-/// Parse a single line for inline markdown: `**bold**` and `` `code` ``.
-fn parse_inline(text: &str, theme: &Theme) -> Line<'static> {
-    let mut spans: Vec<Span<'static>> = Vec::new();
-    let mut remaining = text;
-
-    while !remaining.is_empty() {
-        // Look for bold (**...**) first.
-        if let Some(start) = remaining.find("**") {
-            // Text before the bold marker.
-            if start > 0 {
-                let before = remaining[..start].to_string();
-                spans.push(Span::raw(before));
-            }
-            let after_open = &remaining[start + 2..];
-            if let Some(end) = after_open.find("**") {
-                let bold_text = after_open[..end].to_string();
-                spans.push(Span::styled(
-                    bold_text,
-                    theme.assistant_style.add_modifier(Modifier::BOLD),
-                ));
-                remaining = &after_open[end + 2..];
-                continue;
-            }
-        }
-
-        // Look for inline code (`...`).
-        if let Some(start) = remaining.find('`') {
-            if start > 0 {
-                let before = remaining[..start].to_string();
-                spans.push(Span::raw(before));
-            }
-            let after_open = &remaining[start + 1..];
-            if let Some(end) = after_open.find('`') {
-                let code_text = after_open[..end].to_string();
-                spans.push(Span::styled(code_text, theme.code_style));
-                remaining = &after_open[end + 1..];
-                continue;
-            }
-        }
-
-        // No more markers — push the rest as plain text.
-        spans.push(Span::raw(remaining.to_string()));
-        break;
-    }
-
-    Line::from(spans)
 }
