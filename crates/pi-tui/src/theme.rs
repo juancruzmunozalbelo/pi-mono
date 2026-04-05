@@ -36,7 +36,7 @@ impl Default for Theme {
             thinking_style: Style::default().fg(Color::Magenta),
             status_bar_style: Style::default().fg(Color::Black).bg(Color::DarkGray),
             input_style: Style::default().fg(Color::White),
-            code_style: Style::default().fg(Color::Green).bg(Color::Rgb(30, 30, 30)),
+            code_style: Style::default().fg(Color::LightYellow),
             border_style: Style::default().fg(Color::DarkGray),
             highlight_style: Style::default().fg(Color::Black).bg(Color::Cyan),
             muted_style: Style::default().fg(Color::DarkGray),
