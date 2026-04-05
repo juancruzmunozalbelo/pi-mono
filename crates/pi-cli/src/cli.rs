@@ -19,6 +19,11 @@ pub struct Cli {
     #[arg(short, long)]
     pub prompt: Option<String>,
 
+    /// API key for the sub-agent provider (MiniMax).
+    /// Overrides `[sub_agent] api_key` in config.toml and the MINIMAX_API_KEY env var.
+    #[arg(long)]
+    pub sub_agent_key: Option<String>,
+
     #[command(subcommand)]
     pub command: Option<Commands>,
 }
@@ -33,4 +38,12 @@ pub enum Mode {
 pub enum Commands {
     /// List saved sessions
     Sessions,
+    /// Login to GitHub Copilot via device code flow
+    Login,
+    /// Show usage statistics (tokens, cost) across sessions
+    Usage {
+        /// Time period to filter
+        #[arg(long, default_value = "all")]
+        period: crate::usage::Period,
+    },
 }
