@@ -1,0 +1,7 @@
+{
+    "task_id": 5,
+    "task": "Create a Rust file /tmp/bench/fib.rs with a function that returns the nth fibonacci number, compile it, and run it with n=10",
+    "output": "The Fibonacci implementation file was created at `/tmp/bench/fib.rs`, compiled successfully, and executed for `n=10`. The output is `Fibonacci(10) = 55`.\n",
+    "elapsed_seconds": 16,
+    "model": "default"
+}

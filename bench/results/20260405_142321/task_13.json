@@ -1,0 +1,7 @@
+{
+    "task_id": 13,
+    "task": "Write a shell script /tmp/bench/monitor.sh that shows CPU and memory usage",
+    "output": "Error: Provider error: Provider error: HTTP 400 Bad Request: {\"error\":{\"message\":\"model \\\"gpt-5.4-mini\\\" is not accessible via the /chat/completions endpoint\",\"code\":\"unsupported_api_for_model\"}}\n\n\nCaused by:\n    Provider error: HTTP 400 Bad Request: {\"error\":{\"message\":\"model \\\"gpt-5.4-mini\\\" is not accessible via the /chat/completions endpoint\",\"code\":\"unsupported_api_for_model\"}}\n    \n",
+    "elapsed_seconds": 1,
+    "model": "default"
+}

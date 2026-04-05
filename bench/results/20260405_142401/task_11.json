@@ -1,0 +1,7 @@
+{
+    "task_id": 11,
+    "task": "Write a grep-like tool in Python at /tmp/bench/pygrep.py that searches for a pattern in files",
+    "output": "The `pygrep.py` tool has been successfully created at `/tmp/bench/pygrep.py`. It functions like `grep`, supporting features like regex pattern matching, case-insensitive search, file extension filtering, and searching in single or multiple files.\n\n### Features:\n- **Regex Matching:** Matches lines in files based on a provided regex pattern.\n- **Case-Insensitive Search:** Use `-i` for case-insensitivity.\n- **File Extension Filtering:** Use `-e` to only search specific extensions.\n- Outputs matched lines in this format:\n  ```\n  filename:line_number:matched_line\n  ```\n\n### Example Usage:\n```bash\n# Search for 'def ' in all `.py` files within the src directory.\npython3 /tmp/bench/pygrep.py \"def \" src/ -e py\n\n# Search case-insensitively for 'import'.\npython3 /tmp/bench/pygrep.py \"import\" . -i\n\n# Search in a single file.\npython3 /tmp/bench/pygrep.py \"pattern\" file.txt\n```\n\nLet me know if you need any further enhancements or a review of the implementation!\n",
+    "elapsed_seconds": 54,
+    "model": "default"
+}

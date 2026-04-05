@@ -100,6 +100,7 @@ pub struct Model {
 #[serde(rename_all = "kebab-case")]
 pub enum ApiType {
     OpenaiCompletions,
+    OpenaiResponses,
     AnthropicMessages,
 }
 

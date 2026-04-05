@@ -8,6 +8,7 @@ use pi_ai::{ApiType, ChatEvent, Model, ModelCost, StopReason};
 
 mod cli;
 mod config;
+mod escalate;
 mod guidance;
 mod ralph;
 mod session;
@@ -17,6 +18,7 @@ mod usage;
 
 use cli::{Cli, Commands, Mode};
 use config::Config;
+use escalate::{EscalateReviewTool, EscalationConfig};
 use spawn_agent::{minimax_model, SpawnAgentTool, SubAgentConfig};
 
 #[tokio::main]
@@ -131,6 +133,25 @@ async fn login_command() -> Result<()> {
 
 // ─── Provider + tools setup ──────────────────────────────────────────────────
 
+/// Models that require the OpenAI Responses API instead of Chat Completions.
+const RESPONSES_MODELS: &[&str] = &[
+    "gpt-5.4-mini",
+    "gpt-5.4",
+    "gpt-5.3-codex",
+    "gpt-5.2-codex",
+    "gpt-5.2",
+    "gpt-5.1",
+    "gpt-5-mini",
+    "gemini-2.5-pro",
+    "gemini-3-flash",
+    "gemini-3.1-pro",
+    "grok-code-fast-1",
+];
+
+fn needs_responses_api(model_id: &str) -> bool {
+    RESPONSES_MODELS.contains(&model_id)
+}
+
 fn setup_provider(cli: &Cli, config: &Config) -> Result<(Box<dyn pi_ai::LlmProvider>, Model)> {
     // Resolve provider name; CLI --model may contain "provider:model_id"
     let (provider_name, model_id_from_cli) = match cli.model.as_deref() {
@@ -171,12 +192,20 @@ fn setup_provider(cli: &Cli, config: &Config) -> Result<(Box<dyn pi_ai::LlmProvi
             )
         })?;
 
-    let provider = pi_ai::get_provider(&provider_name, api_key)
-        .map_err(|e| anyhow::anyhow!("Provider error: {e}"))?;
-
     let model_id = model_id_from_cli
         .or_else(|| config.model.clone())
         .unwrap_or_else(|| "gpt-4o".to_string());
+
+    // Auto-select Responses API for models that require it, when using Copilot.
+    let effective_provider_name =
+        if provider_name == "github-copilot" && needs_responses_api(&model_id) {
+            "github-copilot-responses".to_string()
+        } else {
+            provider_name.clone()
+        };
+
+    let provider = pi_ai::get_provider(&effective_provider_name, api_key)
+        .map_err(|e| anyhow::anyhow!("Provider error: {e}"))?;
 
     let (api, base_url, context_window, max_tokens) = match provider_name.as_str() {
         "minimax" => (
@@ -184,6 +213,12 @@ fn setup_provider(cli: &Cli, config: &Config) -> Result<(Box<dyn pi_ai::LlmProvi
             "https://api.minimax.io/anthropic".to_string(),
             204800,
             131072,
+        ),
+        _ if effective_provider_name == "github-copilot-responses" => (
+            ApiType::OpenaiResponses,
+            "https://api.githubcopilot.com".to_string(),
+            128000,
+            16384,
         ),
         _ => (
             ApiType::OpenaiCompletions,
@@ -270,11 +305,17 @@ fn create_basic_tools() -> Vec<Arc<dyn pi_tools::Tool>> {
     ]
 }
 
-/// Build the full orchestrator tool list, optionally including SpawnAgentTool.
-fn create_tools(sub_agent_config: Option<Arc<SubAgentConfig>>) -> Vec<Arc<dyn pi_tools::Tool>> {
+/// Build the full orchestrator tool list with optional spawn_agent and escalate_review.
+fn create_tools(
+    sub_agent_config: Option<Arc<SubAgentConfig>>,
+    escalation_config: Option<Arc<EscalationConfig>>,
+) -> Vec<Arc<dyn pi_tools::Tool>> {
     let mut tools: Vec<Arc<dyn pi_tools::Tool>> = create_basic_tools();
     if let Some(cfg) = sub_agent_config {
         tools.push(Arc::new(SpawnAgentTool::new(cfg)));
+    }
+    if let Some(cfg) = escalation_config {
+        tools.push(Arc::new(EscalateReviewTool::new(cfg)));
     }
     tools
 }
@@ -285,7 +326,14 @@ fn build_agent(cli: &Cli, config: &Config) -> Result<Agent> {
 
     let basic_tools = create_basic_tools();
     let sub_config = setup_sub_agent_config(cli, config, basic_tools.clone());
-    let tools = create_tools(sub_config);
+
+    // Escalation config — uses the same provider (Copilot) with Sonnet 4.6
+    let escalation_config = Some(Arc::new(EscalationConfig {
+        provider: Arc::clone(&provider_arc),
+        tools: create_basic_tools(),
+    }));
+
+    let tools = create_tools(sub_config, escalation_config);
 
     let compaction_hook = pi_agent::compaction::make_compaction_hook(
         Arc::clone(&provider_arc),
@@ -383,7 +431,11 @@ async fn run_interactive(cli: &Cli, config: &Config) -> Result<()> {
 
     let basic_tools = create_basic_tools();
     let sub_config = setup_sub_agent_config(cli, config, basic_tools.clone());
-    let tools = create_tools(sub_config);
+    let escalation_config = Some(Arc::new(EscalationConfig {
+        provider: Arc::clone(&provider),
+        tools: create_basic_tools(),
+    }));
+    let tools = create_tools(sub_config, escalation_config);
 
     let compaction_hook = pi_agent::compaction::make_compaction_hook(
         Arc::clone(&provider),
@@ -519,7 +571,11 @@ async fn run_repl(
 
             let basic_tools = create_basic_tools();
             let sub_config = setup_sub_agent_config(cli, config, basic_tools.clone());
-            let tools = create_tools(sub_config);
+            let esc_config = Some(Arc::new(EscalationConfig {
+                provider: Arc::clone(&provider),
+                tools: create_basic_tools(),
+            }));
+            let tools = create_tools(sub_config, esc_config);
 
             let new_config = AgentConfig {
                 provider: Arc::clone(&provider),

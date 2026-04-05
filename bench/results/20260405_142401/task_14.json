@@ -1,0 +1,7 @@
+{
+    "task_id": 14,
+    "task": "Create a Python HTTP server script at /tmp/bench/server.py that serves files from the current directory on port 8080",
+    "output": "The Python HTTP server script at `/tmp/bench/server.py` has been created successfully. Here's the content:\n\n```python\n#!/usr/bin/env python3\n\"\"\"Simple HTTP server that serves files from the current directory.\"\"\"\n\nimport os\nimport http.server\nimport socketserver\n\nPORT = 8080\n\nclass Handler(http.server.SimpleHTTPRequestHandler):\n    def __init__(self, *args, **kwargs):\n        super().__init__(*args, directory=os.getcwd(), **kwargs)\n\nif __name__ == \"__main__\":\n    with socketserver.TCPServer((\"\", PORT), Handler) as httpd:\n        print(f\"Serving files from {os.getcwd()} at http://localhost:{PORT}\")\n        try:\n            httpd.serve_forever()\n        except KeyboardInterrupt:\n            print(\"\\nServer stopped.\")\n```\n\nThis script:\n1. Serves files from the current directory.\n2. Listens on port 8080.\n3. Prints the directory being served and handles shutdown gracefully with `KeyboardInterrupt`.\n\nLet me know if you need further customizations or assistance!\n",
+    "elapsed_seconds": 14,
+    "model": "default"
+}

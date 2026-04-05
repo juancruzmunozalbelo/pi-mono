@@ -1,0 +1,7 @@
+{
+    "task_id": 7,
+    "task": "Create a JSON file /tmp/bench/config.json with keys: name, version, features (array of 3 items)",
+    "output": "The JSON file `/tmp/bench/config.json` was successfully created with the following content:\n\n```json\n{\n  \"name\": \"example-app\",\n  \"version\": \"1.0.0\",\n  \"features\": [\"item1\", \"item2\", \"item3\"]\n}\n```\n",
+    "elapsed_seconds": 12,
+    "model": "default"
+}

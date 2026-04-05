@@ -41,6 +41,9 @@ pub fn get_provider(name: &str, api_key: String) -> Result<Box<dyn LlmProvider>,
         "github-copilot" => Ok(Box::new(crate::openai::OpenAiCompletionsProvider::new(
             api_key,
         ))),
+        "github-copilot-responses" => Ok(Box::new(
+            crate::openai_responses::OpenAiResponsesProvider::new(api_key),
+        )),
         "minimax" => Ok(Box::new(crate::anthropic::AnthropicMessagesProvider::new(
             api_key,
         ))),

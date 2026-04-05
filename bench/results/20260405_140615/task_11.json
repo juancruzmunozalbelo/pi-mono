@@ -1,0 +1,7 @@
+{
+    "task_id": 11,
+    "task": "Write a grep-like tool in Python at /tmp/bench/pygrep.py that searches for a pattern in files",
+    "output": "The Python script `/tmp/bench/pygrep.py` is complete and provides functionalities very similar to `grep`. Below is a brief of its capabilities:\n\n### Key Features\n1. **Pattern Matching**:\n   - Regex-driven searches using the `re` module.\n2. **Directory Search**:\n   - Recursively walks directories, skips non-source/system directories and hidden files.\n3. **Flexible Options**:\n   - Case-insensitive search (`-i`).\n   - Filtering by file extensions or patterns with glob (`-g`).\n   - Context control:\n     - `-C` for lines around matches.\n     - `-A` for lines after matches.\n     - `-B` for lines before matches.\n4. **Error Handling**:\n   - Graceful handling of unreadable files and directories.\n   - Skip hidden directories and system-specific files.\n\n### Output Format\nThe output mimics the structure of the `grep` command:\n```\nfilename:line_number:line\n```\nContext lines are prefixed with `+` for after-match and `-` for before-match.\n\n### Usage Example\nSearch for a pattern like `error` in the current directory:\n```bash\npython3 pygrep.py -i \"error\" .\n```\n\nIf you would like to test or need any modification/enhancement, let me know!\n",
+    "elapsed_seconds": 72,
+    "model": "default"
+}

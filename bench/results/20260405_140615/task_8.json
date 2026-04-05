@@ -1,0 +1,7 @@
+{
+    "task_id": 8,
+    "task": "Write a Python script /tmp/bench/sort.py that reads lines from stdin, sorts them, and prints them",
+    "output": "The Python script has been successfully created at `/tmp/bench/sort.py`. It reads lines from stdin, sorts them, and prints them. Let me know if you need anything else!\n",
+    "elapsed_seconds": 4,
+    "model": "default"
+}

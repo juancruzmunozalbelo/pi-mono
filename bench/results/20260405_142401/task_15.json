@@ -1,0 +1,7 @@
+{
+    "task_id": 15,
+    "task": "Write a Rust program /tmp/bench/wordcount.rs that counts words in a file passed as argument",
+    "output": "The Rust program for counting words in a file, `wordcount.rs`, has been created at `/tmp/bench/wordcount.rs`. You can compile and run the program using `rustc`:\n\n```bash\nrustc /tmp/bench/wordcount.rs -o /tmp/bench/wordcount\n/tmp/bench/wordcount <file_path>\n``` \n\nReplace `<file_path>` with the path of the file you want to count the words in. Let me know if you need any further assistance!\n",
+    "elapsed_seconds": 7,
+    "model": "default"
+}

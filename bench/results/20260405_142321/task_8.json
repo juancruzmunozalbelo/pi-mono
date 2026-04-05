@@ -1,0 +1,7 @@
+{
+    "task_id": 8,
+    "task": "Write a Python script /tmp/bench/sort.py that reads lines from stdin, sorts them, and prints them",
+    "output": "Error: Provider error: Provider error: HTTP 400 Bad Request: {\"error\":{\"message\":\"model \\\"gpt-5.4-mini\\\" is not accessible via the /chat/completions endpoint\",\"code\":\"unsupported_api_for_model\"}}\n\n\nCaused by:\n    Provider error: HTTP 400 Bad Request: {\"error\":{\"message\":\"model \\\"gpt-5.4-mini\\\" is not accessible via the /chat/completions endpoint\",\"code\":\"unsupported_api_for_model\"}}\n    \n",
+    "elapsed_seconds": 2,
+    "model": "default"
+}

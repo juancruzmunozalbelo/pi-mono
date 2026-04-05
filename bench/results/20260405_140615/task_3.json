@@ -1,0 +1,7 @@
+{
+    "task_id": 3,
+    "task": "Create a directory /tmp/bench/project with a README.md containing a title and description",
+    "output": "The directory `/tmp/bench/project` has been created, and a `README.md` file containing a title and description has been added.\n",
+    "elapsed_seconds": 3,
+    "model": "default"
+}

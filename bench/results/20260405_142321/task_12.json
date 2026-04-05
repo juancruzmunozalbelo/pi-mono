@@ -1,0 +1,7 @@
+{
+    "task_id": 12,
+    "task": "Create a git repository at /tmp/bench/repo with an initial commit containing a README",
+    "output": "Error: Provider error: Provider error: HTTP 400 Bad Request: {\"error\":{\"message\":\"model \\\"gpt-5.4-mini\\\" is not accessible via the /chat/completions endpoint\",\"code\":\"unsupported_api_for_model\"}}\n\n\nCaused by:\n    Provider error: HTTP 400 Bad Request: {\"error\":{\"message\":\"model \\\"gpt-5.4-mini\\\" is not accessible via the /chat/completions endpoint\",\"code\":\"unsupported_api_for_model\"}}\n    \n",
+    "elapsed_seconds": 1,
+    "model": "default"
+}

@@ -1,0 +1,7 @@
+{
+    "task_id": 4,
+    "task": "Write a bash script at /tmp/bench/count.sh that counts files in a directory passed as $1",
+    "output": "The bash script has been created at `/tmp/bench/count.sh`. It counts the files in the specified directory passed as the first argument ($1). Make sure to give it execute permissions with `chmod +x /tmp/bench/count.sh` before running it.\n",
+    "elapsed_seconds": 5,
+    "model": "default"
+}
