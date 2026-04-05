@@ -227,11 +227,9 @@ impl<'a> StatefulWidget for MessagesWidget<'a> {
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let lines = self.build_lines();
 
-        // Auto-scroll: set to a very large value — the Paragraph widget
-        // internally clamps scroll to valid range after wrapping.
-        if state.auto_scroll {
-            state.scroll_offset = u16::MAX;
-        }
+        // Auto-scroll disabled for now — always show from top (scroll=0).
+        // Users can PgDown manually. TODO: fix visual line calculation.
+        let _ = state.auto_scroll; // acknowledge field
 
         let paragraph = Paragraph::new(lines)
             .block(
