@@ -19,25 +19,32 @@ pub fn make_skin() -> MadSkin {
 
 /// Render a complete markdown text block to terminal.
 pub fn render_text(skin: &MadSkin, text: &str) {
-    skin.print_text(text);
+    // Clean \r characters that some models inject
+    let clean = text.replace('\r', "");
+    if !clean.trim().is_empty() {
+        println!(); // blank line before response
+        skin.print_text(&clean);
+    }
 }
 
-/// Render a tool execution start.
+/// Render a tool execution start — inline, subtle.
 pub fn render_tool_start(name: &str) {
-    eprintln!("\x1b[33m  ▸ {name}\x1b[0m");
+    println!("\x1b[33m  ▸ {name}\x1b[0m");
 }
 
 /// Render a tool execution result.
 pub fn render_tool_end(name: &str, result_text: &str, is_error: bool) {
-    let first_line = result_text.lines().next().unwrap_or("");
+    // Clean \r
+    let clean = result_text.replace('\r', "");
+    let first_line = clean.lines().next().unwrap_or("");
     let truncated = if first_line.chars().count() > 80 {
         format!("{}...", first_line.chars().take(80).collect::<String>())
     } else {
         first_line.to_string()
     };
     if is_error {
-        eprintln!("\x1b[31m  ✗ [{name}] {truncated}\x1b[0m");
+        println!("\x1b[31m  ✗ [{name}] {truncated}\x1b[0m");
     } else {
-        eprintln!("\x1b[2m  ✓ [{name}] {truncated}\x1b[0m");
+        println!("\x1b[2m  ✓ [{name}] {truncated}\x1b[0m");
     }
 }
