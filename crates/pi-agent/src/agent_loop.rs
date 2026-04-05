@@ -555,9 +555,16 @@ pub async fn run_loop(agent: &mut Agent) -> Result<(), AgentError> {
 
             // Extract tool calls
             let tool_calls = extract_tool_calls(&assistant_msg);
+            tracing::debug!(
+                "Turn {tool_turn_count}: stop_reason={:?}, tool_calls={}, msg_blocks={}",
+                msg_stop_reason,
+                tool_calls.len(),
+                if let Message::Assistant { content, .. } = &assistant_msg { content.len() } else { 0 },
+            );
 
             if tool_calls.is_empty() {
                 // No tools — this turn is done
+                tracing::debug!("No tool calls — ending turn");
                 final_stop_reason = msg_stop_reason.unwrap_or(StopReason::Stop);
                 emit(&agent.event_tx, AgentEvent::TurnEnd { error: None });
                 break 'inner;
@@ -565,6 +572,7 @@ pub async fn run_loop(agent: &mut Agent) -> Result<(), AgentError> {
 
             // Record ToolUse stop reason for later
             final_stop_reason = msg_stop_reason.unwrap_or(StopReason::ToolUse);
+            tracing::debug!("Executing {} tool calls", tool_calls.len());
 
             // Execute tools
             let results = match agent.config.tool_execution_mode {

@@ -24,7 +24,20 @@ use spawn_agent::{minimax_model, SpawnAgentTool, SubAgentConfig};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    tracing_subscriber::fmt::init();
+    // Log to file so TUI isn't polluted with debug output
+    let log_file = std::fs::File::create("/tmp/pi-debug.log").ok();
+    if let Some(file) = log_file {
+        tracing_subscriber::fmt()
+            .with_writer(std::sync::Mutex::new(file))
+            .with_env_filter(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("debug")),
+            )
+            .with_ansi(false)
+            .init();
+    } else {
+        tracing_subscriber::fmt::init();
+    }
     let cli = Cli::parse();
     let config = config::load_config();
 
