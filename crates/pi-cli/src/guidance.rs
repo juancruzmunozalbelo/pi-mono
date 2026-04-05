@@ -169,7 +169,10 @@ mod tests {
         let cwd = tempdir().unwrap();
         write_local_guidance(cwd.path(), "COPILOT.md", "guidance content");
         let result = apply_guidance(Some("existing prompt".to_string()), "copilot", cwd.path());
-        assert_eq!(result, Some("guidance content\n---\nexisting prompt".to_string()));
+        assert_eq!(
+            result,
+            Some("guidance content\n---\nexisting prompt".to_string())
+        );
     }
 
     #[test]
@@ -190,7 +193,11 @@ mod tests {
         // Since we can't guarantee the real global state, only check the path where
         // no local file is present AND we know no global file for a fake provider.
         let cwd2 = tempdir().unwrap();
-        let result2 = apply_guidance(Some("just the prompt".to_string()), "DEFINITELY_FAKE_PROVIDER_XYZ", cwd2.path());
+        let result2 = apply_guidance(
+            Some("just the prompt".to_string()),
+            "DEFINITELY_FAKE_PROVIDER_XYZ",
+            cwd2.path(),
+        );
         assert_eq!(result2, Some("just the prompt".to_string()));
     }
 

@@ -42,7 +42,10 @@ pub fn analyze_sessions(period: Period) -> anyhow::Result<UsageReport> {
 }
 
 /// Analyze all sessions from the given directory and produce a `UsageReport`.
-pub fn analyze_sessions_from_dir(sessions_dir: &std::path::Path, period: Period) -> anyhow::Result<UsageReport> {
+pub fn analyze_sessions_from_dir(
+    sessions_dir: &std::path::Path,
+    period: Period,
+) -> anyhow::Result<UsageReport> {
     let mut report = UsageReport {
         providers: HashMap::new(),
         grand_total: ModelStats::default(),
@@ -70,9 +73,7 @@ pub fn analyze_sessions_from_dir(sessions_dir: &std::path::Path, period: Period)
                 let mdate = mtime_local.date_naive();
                 match period {
                     Period::Today => mdate == today,
-                    Period::Week => {
-                        (0..7).contains(&(today - mdate).num_days())
-                    }
+                    Period::Week => (0..7).contains(&(today - mdate).num_days()),
                     Period::All => unreachable!(),
                 }
             }
@@ -113,10 +114,7 @@ pub fn analyze_sessions_from_dir(sessions_dir: &std::path::Path, period: Period)
 
                 session_had_messages = true;
 
-                let pstats = report
-                    .providers
-                    .entry(provider_name.clone())
-                    .or_default();
+                let pstats = report.providers.entry(provider_name.clone()).or_default();
                 let mstats = pstats.models.entry(model_name.clone()).or_default();
 
                 mstats.messages += 1;
@@ -143,10 +141,7 @@ pub fn analyze_sessions_from_dir(sessions_dir: &std::path::Path, period: Period)
         // Count sessions: one session contributes 1 to each group it appears in,
         // but only if it had at least one valid assistant message.
         if session_had_messages {
-            let pstats = report
-                .providers
-                .entry(provider_name.clone())
-                .or_default();
+            let pstats = report.providers.entry(provider_name.clone()).or_default();
             let mstats = pstats.models.entry(model_name.clone()).or_default();
             mstats.sessions += 1;
             pstats.totals.sessions += 1;
@@ -171,7 +166,10 @@ fn split_model(model: &str) -> (String, String) {
 
 /// Write a usage report to any `impl Write`.  Used by [`display_usage`] and by
 /// tests that capture output to a `Vec<u8>` buffer.
-pub fn display_usage_to_writer(report: &UsageReport, w: &mut impl std::io::Write) -> std::io::Result<()> {
+pub fn display_usage_to_writer(
+    report: &UsageReport,
+    w: &mut impl std::io::Write,
+) -> std::io::Result<()> {
     if report.providers.is_empty() {
         writeln!(w, "No session data available for the selected period.")?;
         return Ok(());
@@ -386,12 +384,7 @@ mod tests {
     #[test]
     fn tool_result_messages_ignored() {
         let dir = tempdir().unwrap();
-        write_test_session(
-            dir.path(),
-            "sess1",
-            "openai:gpt-4",
-            vec![tool_result_msg()],
-        );
+        write_test_session(dir.path(), "sess1", "openai:gpt-4", vec![tool_result_msg()]);
         let report = analyze_sessions_from_dir(dir.path(), Period::All).unwrap();
         assert!(report.providers.is_empty());
         assert_eq!(report.grand_total.sessions, 0);
@@ -481,9 +474,15 @@ mod tests {
             vec![assistant_msg(make_usage(10, 5, 15))],
         );
         let report = analyze_sessions_from_dir(dir.path(), Period::All).unwrap();
-        assert!(report.providers.contains_key("copilot"), "expected provider 'copilot'");
+        assert!(
+            report.providers.contains_key("copilot"),
+            "expected provider 'copilot'"
+        );
         let pstats = &report.providers["copilot"];
-        assert!(pstats.models.contains_key("gpt-4o"), "expected model 'gpt-4o'");
+        assert!(
+            pstats.models.contains_key("gpt-4o"),
+            "expected model 'gpt-4o'"
+        );
     }
 
     #[test]
@@ -496,9 +495,15 @@ mod tests {
             vec![assistant_msg(make_usage(10, 5, 15))],
         );
         let report = analyze_sessions_from_dir(dir.path(), Period::All).unwrap();
-        assert!(report.providers.contains_key("unknown"), "expected provider 'unknown'");
+        assert!(
+            report.providers.contains_key("unknown"),
+            "expected provider 'unknown'"
+        );
         let pstats = &report.providers["unknown"];
-        assert!(pstats.models.contains_key("gpt-4o"), "expected model 'gpt-4o'");
+        assert!(
+            pstats.models.contains_key("gpt-4o"),
+            "expected model 'gpt-4o'"
+        );
     }
 
     #[test]
@@ -533,7 +538,12 @@ mod tests {
         String::from_utf8(buf).unwrap()
     }
 
-    fn make_report_with_provider(provider: &str, model: &str, input: u64, output: u64) -> UsageReport {
+    fn make_report_with_provider(
+        provider: &str,
+        model: &str,
+        input: u64,
+        output: u64,
+    ) -> UsageReport {
         let mut report = UsageReport {
             providers: HashMap::new(),
             grand_total: ModelStats::default(),
@@ -574,9 +584,18 @@ mod tests {
     fn display_shows_provider_model_total() {
         let report = make_report_with_provider("openai", "gpt-4o", 100, 50);
         let output = capture_display(&report);
-        assert!(output.contains("openai"), "output should contain provider name");
-        assert!(output.contains("gpt-4o"), "output should contain model name");
-        assert!(output.contains("TOTAL"), "output should contain 'TOTAL' row");
+        assert!(
+            output.contains("openai"),
+            "output should contain provider name"
+        );
+        assert!(
+            output.contains("gpt-4o"),
+            "output should contain model name"
+        );
+        assert!(
+            output.contains("TOTAL"),
+            "output should contain 'TOTAL' row"
+        );
     }
 
     #[test]
@@ -615,8 +634,14 @@ mod tests {
         let aaa_pos = output.find("aaa-provider").unwrap();
         let mmm_pos = output.find("mmm-provider").unwrap();
         let zzz_pos = output.find("zzz-provider").unwrap();
-        assert!(aaa_pos < mmm_pos, "aaa-provider should appear before mmm-provider");
-        assert!(mmm_pos < zzz_pos, "mmm-provider should appear before zzz-provider");
+        assert!(
+            aaa_pos < mmm_pos,
+            "aaa-provider should appear before mmm-provider"
+        );
+        assert!(
+            mmm_pos < zzz_pos,
+            "mmm-provider should appear before zzz-provider"
+        );
     }
 
     // ── Edge cases ────────────────────────────────────────────────────────────
@@ -637,7 +662,10 @@ mod tests {
 
         // Display should not panic on zero-token stats.
         let output = capture_display(&report);
-        assert!(output.contains("TOTAL"), "zero-token report should still show TOTAL");
+        assert!(
+            output.contains("TOTAL"),
+            "zero-token report should still show TOTAL"
+        );
     }
 
     #[test]
@@ -649,21 +677,22 @@ mod tests {
             "sess_large",
             "openai:gpt-4",
             // Use distinct (input, output, total) to avoid deduplication.
-            vec![
-                assistant_msg(serde_json::json!({
-                    "input": large,
-                    "output": large / 2,
-                    "cache_read": 0,
-                    "cache_write": 0,
-                    "total_tokens": large
-                })),
-            ],
+            vec![assistant_msg(serde_json::json!({
+                "input": large,
+                "output": large / 2,
+                "cache_read": 0,
+                "cache_write": 0,
+                "total_tokens": large
+            }))],
         );
         // Should not panic.
         let report = analyze_sessions_from_dir(dir.path(), Period::All).unwrap();
         assert_eq!(report.grand_total.input_tokens, large);
         let output = capture_display(&report);
-        assert!(output.contains("TOTAL"), "large token report should still display");
+        assert!(
+            output.contains("TOTAL"),
+            "large token report should still display"
+        );
     }
 
     // ── split_model unit tests ─────────────────────────────────────────────────

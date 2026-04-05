@@ -169,7 +169,10 @@ pub async fn run_ralph_loop(
             s
         }
         Some(s) if s.status == RalphStatus::Active => {
-            println!("Loop '{}' is already active at iteration {}.", name, s.iteration);
+            println!(
+                "Loop '{}' is already active at iteration {}.",
+                name, s.iteration
+            );
             s
         }
         Some(s) => {
@@ -213,15 +216,17 @@ pub async fn run_ralph_loop(
     save_state(&state)?;
 
     // ── 2. Read task content ─────────────────────────────────────────────────
-    let task_content = std::fs::read_to_string(&state.task_file).with_context(|| {
-        format!("Failed to read task file: {}", state.task_file)
-    })?;
+    let task_content = std::fs::read_to_string(&state.task_file)
+        .with_context(|| format!("Failed to read task file: {}", state.task_file))?;
 
     // ── 3. Iterate ───────────────────────────────────────────────────────────
     loop {
         // Check cancellation before each iteration.
         if cancel.is_cancelled() {
-            println!("Loop '{name}' cancelled — pausing at iteration {}.", state.iteration);
+            println!(
+                "Loop '{name}' cancelled — pausing at iteration {}.",
+                state.iteration
+            );
             state.status = RalphStatus::Paused;
             state.updated_at = Utc::now().to_rfc3339();
             save_state(&state)?;
@@ -443,8 +448,8 @@ pub fn handle_ralph_status() -> anyhow::Result<()> {
 
 /// Handle `/ralph stop <name>`
 pub fn handle_ralph_stop(name: &str) -> anyhow::Result<()> {
-    let mut state = load_state(name)?
-        .ok_or_else(|| anyhow::anyhow!("Loop '{}' not found.", name))?;
+    let mut state =
+        load_state(name)?.ok_or_else(|| anyhow::anyhow!("Loop '{}' not found.", name))?;
 
     if state.status != RalphStatus::Active {
         println!(
@@ -533,7 +538,10 @@ mod tests {
         let _lock = TEST_LOCK.lock().unwrap();
         with_tmpdir(tmp.path(), || {
             let result = load_state("no-such-loop")?;
-            assert!(result.is_none(), "loading non-existent loop should return None");
+            assert!(
+                result.is_none(),
+                "loading non-existent loop should return None"
+            );
             Ok(())
         })
         .unwrap();
@@ -565,14 +573,22 @@ mod tests {
             let mut state = make_state("jsoncheck");
             state.status = RalphStatus::MaxIterationsReached;
             save_state(&state)?;
-            let raw =
-                std::fs::read_to_string(".ralph/jsoncheck/state.json")?;
+            let raw = std::fs::read_to_string(".ralph/jsoncheck/state.json")?;
             // Keys must exist
             assert!(raw.contains("\"name\""), "JSON must have 'name' key");
             assert!(raw.contains("\"status\""), "JSON must have 'status' key");
-            assert!(raw.contains("\"iteration\""), "JSON must have 'iteration' key");
-            assert!(raw.contains("\"max_iterations\""), "JSON must have 'max_iterations' key");
-            assert!(raw.contains("\"reflection_interval\""), "JSON must have 'reflection_interval' key");
+            assert!(
+                raw.contains("\"iteration\""),
+                "JSON must have 'iteration' key"
+            );
+            assert!(
+                raw.contains("\"max_iterations\""),
+                "JSON must have 'max_iterations' key"
+            );
+            assert!(
+                raw.contains("\"reflection_interval\""),
+                "JSON must have 'reflection_interval' key"
+            );
             // Status must be snake_case
             assert!(
                 raw.contains("\"max_iterations_reached\""),
@@ -714,9 +730,15 @@ mod tests {
         let _lock = TEST_LOCK.lock().unwrap();
         with_tmpdir(tmp.path(), || {
             let err = archive_loop("ghost");
-            assert!(err.is_err(), "archiving non-existent loop must return error");
+            assert!(
+                err.is_err(),
+                "archiving non-existent loop must return error"
+            );
             let msg = format!("{}", err.unwrap_err());
-            assert!(msg.contains("ghost"), "error message should mention the loop name");
+            assert!(
+                msg.contains("ghost"),
+                "error message should mention the loop name"
+            );
             Ok(())
         })
         .unwrap();
@@ -850,13 +872,20 @@ mod tests {
         let result = parse_ralph_start_args("");
         assert!(result.is_err(), "empty args → error (name is required)");
         let msg = format!("{}", result.unwrap_err());
-        assert!(msg.contains("Usage"), "error message should contain usage hint");
+        assert!(
+            msg.contains("Usage"),
+            "error message should contain usage hint"
+        );
     }
 
     #[test]
     fn parse_max_zero() {
         let parsed = parse_ralph_start_args("myloop --max 0").unwrap();
-        assert_eq!(parsed.max_iterations, Some(0), "--max 0 should parse to Some(0)");
+        assert_eq!(
+            parsed.max_iterations,
+            Some(0),
+            "--max 0 should parse to Some(0)"
+        );
     }
 
     #[test]
@@ -864,7 +893,10 @@ mod tests {
         let result = parse_ralph_start_args("myloop --max notanumber");
         assert!(result.is_err(), "non-numeric --max value → error");
         let msg = format!("{}", result.unwrap_err());
-        assert!(msg.contains("Invalid --max value"), "error should mention the bad value");
+        assert!(
+            msg.contains("Invalid --max value"),
+            "error should mention the bad value"
+        );
     }
 
     #[test]
@@ -880,7 +912,10 @@ mod tests {
     fn parse_max_without_value() {
         // --max at end of args with no following value → max_iterations stays None (no crash).
         let parsed = parse_ralph_start_args("myloop --max").unwrap();
-        assert_eq!(parsed.max_iterations, None, "--max with no value → None, no panic");
+        assert_eq!(
+            parsed.max_iterations, None,
+            "--max with no value → None, no panic"
+        );
     }
 
     // ── state_completed_cannot_restart ────────────────────────────────────────

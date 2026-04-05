@@ -1,6 +1,6 @@
+use pi_agent::AgentEvent;
 use std::io::Write;
 use std::time::{Duration, Instant};
-use pi_agent::AgentEvent;
 
 /// Inactivity timeout before marking run as timed out (used in future timer integration).
 #[allow(dead_code)]
@@ -32,7 +32,9 @@ impl TabStatus {
     /// No-op if stdout is not a terminal.
     fn set_title(&self, status: &str) {
         use std::io::IsTerminal;
-        if !std::io::stdout().is_terminal() { return; }
+        if !std::io::stdout().is_terminal() {
+            return;
+        }
         let title = format!("pi - {}{}", self.dir_name, status);
         let _ = write!(std::io::stdout(), "\x1b]0;{title}\x07");
         let _ = std::io::stdout().flush();
@@ -54,7 +56,9 @@ impl TabStatus {
                     // We'll check the actual command in ToolExecutionEnd
                 }
             }
-            AgentEvent::ToolExecutionEnd { tool_name, result, .. } => {
+            AgentEvent::ToolExecutionEnd {
+                tool_name, result, ..
+            } => {
                 if tool_name == "bash" {
                     // Check result content for git commit pattern
                     for content in &result.content {
@@ -116,7 +120,9 @@ mod tests {
 
     fn make_tool_result(text: &str) -> ToolResult {
         ToolResult {
-            content: vec![ToolContent::Text { text: text.to_string() }],
+            content: vec![ToolContent::Text {
+                text: text.to_string(),
+            }],
             is_error: false,
         }
     }
@@ -140,7 +146,10 @@ mod tests {
         ts.saw_commit = true; // should be reset
         ts.handle_event(&AgentEvent::AgentStart);
         assert!(ts.running, "running should be true after AgentStart");
-        assert!(!ts.saw_commit, "saw_commit should be reset to false on AgentStart");
+        assert!(
+            !ts.saw_commit,
+            "saw_commit should be reset to false on AgentStart"
+        );
     }
 
     // ── AgentEnd ──────────────────────────────────────────────────────────────
@@ -150,9 +159,14 @@ mod tests {
         let mut ts = TabStatus::new();
         ts.handle_event(&AgentEvent::AgentStart);
         ts.saw_commit = true;
-        ts.handle_event(&AgentEvent::AgentEnd { stop_reason: StopReason::Stop });
+        ts.handle_event(&AgentEvent::AgentEnd {
+            stop_reason: StopReason::Stop,
+        });
         assert!(!ts.running, "running should be false after AgentEnd");
-        assert!(ts.saw_commit, "saw_commit should remain true (commit happened)");
+        assert!(
+            ts.saw_commit,
+            "saw_commit should remain true (commit happened)"
+        );
     }
 
     #[test]
@@ -160,16 +174,23 @@ mod tests {
         let mut ts = TabStatus::new();
         ts.handle_event(&AgentEvent::AgentStart);
         // saw_commit stays false
-        ts.handle_event(&AgentEvent::AgentEnd { stop_reason: StopReason::Stop });
+        ts.handle_event(&AgentEvent::AgentEnd {
+            stop_reason: StopReason::Stop,
+        });
         assert!(!ts.running);
-        assert!(!ts.saw_commit, "saw_commit should be false when no commit was detected");
+        assert!(
+            !ts.saw_commit,
+            "saw_commit should be false when no commit was detected"
+        );
     }
 
     #[test]
     fn agent_end_with_error_sets_not_running() {
         let mut ts = TabStatus::new();
         ts.handle_event(&AgentEvent::AgentStart);
-        ts.handle_event(&AgentEvent::AgentEnd { stop_reason: StopReason::Error });
+        ts.handle_event(&AgentEvent::AgentEnd {
+            stop_reason: StopReason::Error,
+        });
         assert!(!ts.running, "running should be false after Error stop");
     }
 
@@ -177,7 +198,9 @@ mod tests {
     fn agent_end_with_abort_sets_not_running() {
         let mut ts = TabStatus::new();
         ts.handle_event(&AgentEvent::AgentStart);
-        ts.handle_event(&AgentEvent::AgentEnd { stop_reason: StopReason::Aborted });
+        ts.handle_event(&AgentEvent::AgentEnd {
+            stop_reason: StopReason::Aborted,
+        });
         assert!(!ts.running, "running should be false after Aborted stop");
     }
 
@@ -215,7 +238,10 @@ mod tests {
         // If the implementation becomes more strict, flip the assertion.
         let result = regex_lite_git_commit("echo committed");
         // Current implementation: "git" not in "echo committed" → false
-        assert!(!result, "'echo committed' has no 'git' prefix → not detected");
+        assert!(
+            !result,
+            "'echo committed' has no 'git' prefix → not detected"
+        );
     }
 
     #[test]
@@ -237,7 +263,10 @@ mod tests {
             tool_name: "bash".to_string(),
             result: make_tool_result("$ git commit -m 'fix bug'\n[main abc1234] fix bug"),
         });
-        assert!(ts.saw_commit, "bash result containing git commit should set saw_commit");
+        assert!(
+            ts.saw_commit,
+            "bash result containing git commit should set saw_commit"
+        );
     }
 
     /// ToolExecutionEnd from a non-bash tool should NOT set saw_commit.
@@ -250,7 +279,10 @@ mod tests {
             tool_name: "read".to_string(),
             result: make_tool_result("git commit -m 'test'"),
         });
-        assert!(!ts.saw_commit, "non-bash tool result should NOT set saw_commit");
+        assert!(
+            !ts.saw_commit,
+            "non-bash tool result should NOT set saw_commit"
+        );
     }
 
     // ── check_timeout ─────────────────────────────────────────────────────────
@@ -267,7 +299,10 @@ mod tests {
             .expect("time subtraction should succeed on a modern system");
 
         ts.check_timeout();
-        assert!(!ts.running, "check_timeout should clear running after 200s inactivity");
+        assert!(
+            !ts.running,
+            "check_timeout should clear running after 200s inactivity"
+        );
     }
 
     #[test]
@@ -278,6 +313,9 @@ mod tests {
             .checked_sub(Duration::from_secs(200))
             .expect("time subtraction ok");
         ts.check_timeout();
-        assert!(!ts.running, "check_timeout on idle tab should leave running=false");
+        assert!(
+            !ts.running,
+            "check_timeout on idle tab should leave running=false"
+        );
     }
 }

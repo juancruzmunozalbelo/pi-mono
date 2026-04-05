@@ -17,7 +17,7 @@ mod usage;
 
 use cli::{Cli, Commands, Mode};
 use config::Config;
-use spawn_agent::{SubAgentConfig, SpawnAgentTool, minimax_model};
+use spawn_agent::{minimax_model, SpawnAgentTool, SubAgentConfig};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -107,16 +107,23 @@ async fn login_command() -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("Copilot token exchange failed: {e}"))?;
 
-    println!("Copilot access verified! Base URL: {}", copilot_token.base_url);
+    println!(
+        "Copilot access verified! Base URL: {}",
+        copilot_token.base_url
+    );
 
     // Step 4: Save credentials
     let creds = auth::StoredCredentials {
         github_token,
         enterprise_domain: None,
     };
-    auth::save_credentials(&creds).map_err(|e| anyhow::anyhow!("Failed to save credentials: {e}"))?;
+    auth::save_credentials(&creds)
+        .map_err(|e| anyhow::anyhow!("Failed to save credentials: {e}"))?;
 
-    println!("\nCredentials saved to {}", auth::credentials_path().display());
+    println!(
+        "\nCredentials saved to {}",
+        auth::credentials_path().display()
+    );
     println!("You can now use: pi -p \"hello\"");
 
     Ok(())
@@ -288,7 +295,8 @@ fn build_agent(cli: &Cli, config: &Config) -> Result<Agent> {
 
     // Apply guidance based on provider
     let cwd = std::env::current_dir().unwrap_or_default();
-    let system_prompt = guidance::apply_guidance(config.system_prompt.clone(), &model.provider, &cwd);
+    let system_prompt =
+        guidance::apply_guidance(config.system_prompt.clone(), &model.provider, &cwd);
 
     let thinking_level = config.thinking_level.as_deref().and_then(|l| match l {
         "minimal" => Some(pi_ai::ThinkingLevel::Minimal),
@@ -454,7 +462,9 @@ async fn run_repl(
                 if let Some(sub_cfg) = &sub_config {
                     let spawn_tool = SpawnAgentTool::new(Arc::clone(sub_cfg));
                     let cancel = tokio_util::sync::CancellationToken::new();
-                    if let Err(e) = ralph::handle_ralph_start(rest.trim(), &spawn_tool, cancel).await {
+                    if let Err(e) =
+                        ralph::handle_ralph_start(rest.trim(), &spawn_tool, cancel).await
+                    {
                         eprintln!("Ralph error: {e}");
                     }
                 } else {
@@ -538,9 +548,11 @@ async fn drain_events_with_tab(
     use std::io::Write;
     loop {
         match event_rx.recv().await {
-            Some(ref event @ AgentEvent::MessageUpdate {
-                event: ChatEvent::TextDelta { ref text },
-            }) => {
+            Some(
+                ref event @ AgentEvent::MessageUpdate {
+                    event: ChatEvent::TextDelta { ref text },
+                },
+            ) => {
                 print!("{text}");
                 let _ = std::io::stdout().flush();
                 tab.handle_event(event);
@@ -585,7 +597,9 @@ fn load_copilot_token_blocking() -> Option<String> {
     match result {
         Ok(token) => Some(token.token),
         Err(e) => {
-            eprintln!("Warning: stored credentials expired or invalid ({e}). Run `pi login` again.");
+            eprintln!(
+                "Warning: stored credentials expired or invalid ({e}). Run `pi login` again."
+            );
             None
         }
     }

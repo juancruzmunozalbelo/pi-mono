@@ -10,7 +10,7 @@ use tokio_util::sync::CancellationToken;
 
 use pi_agent::{Agent, AgentConfig, AgentEvent, AgentState, ToolExecutionMode};
 use pi_ai::{ApiType, ChatEvent, Model, ModelCost};
-use pi_tools::{Tool, ToolResult, error_result, text_result};
+use pi_tools::{error_result, text_result, Tool, ToolResult};
 
 // ─── SubAgentConfig ───────────────────────────────────────────────────────────
 
@@ -77,10 +77,7 @@ impl Tool for SpawnAgentTool {
             None => return error_result("Missing required parameter: task"),
         };
 
-        let context = params
-            .get("context")
-            .and_then(|c| c.as_str())
-            .unwrap_or("");
+        let context = params.get("context").and_then(|c| c.as_str()).unwrap_or("");
 
         let user_message = if context.is_empty() {
             task
