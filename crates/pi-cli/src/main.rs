@@ -12,6 +12,7 @@ mod escalate;
 mod guidance;
 mod openspec_tool;
 mod ralph;
+mod render;
 mod session;
 mod skills;
 mod spawn_agent;
@@ -422,17 +423,42 @@ async fn run_print(cli: &Cli, config: &Config, prompt: String) -> Result<()> {
     // Run agent in background
     let agent_handle = tokio::spawn(async move { agent.prompt(prompt).await });
 
-    // Consume events, print text to stdout
+    // Consume events, buffer text and render with termimad at the end
+    let skin = render::make_skin();
+    let mut text_buffer = String::new();
+
     while let Some(event) = event_rx.recv().await {
         match event {
             AgentEvent::MessageUpdate {
                 event: ChatEvent::TextDelta { text },
             } => {
-                use std::io::Write;
-                print!("{text}");
-                std::io::stdout().flush()?;
+                text_buffer.push_str(&text);
+            }
+            AgentEvent::ToolExecutionStart { tool_name, .. } => {
+                if !text_buffer.is_empty() {
+                    render::render_text(&skin, &text_buffer);
+                    text_buffer.clear();
+                }
+                render::render_tool_start(&tool_name);
+            }
+            AgentEvent::ToolExecutionEnd {
+                tool_name, result, ..
+            } => {
+                let text: String = result
+                    .content
+                    .iter()
+                    .map(|c| match c {
+                        pi_tools::ToolContent::Text { text } => text.as_str(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join("");
+                render::render_tool_end(&tool_name, &text, result.is_error);
             }
             AgentEvent::AgentEnd { stop_reason } => {
+                if !text_buffer.is_empty() {
+                    render::render_text(&skin, &text_buffer);
+                    text_buffer.clear();
+                }
                 if stop_reason == StopReason::Error {
                     eprintln!("\nAgent ended with error.");
                     std::process::exit(1);
@@ -444,7 +470,6 @@ async fn run_print(cli: &Cli, config: &Config, prompt: String) -> Result<()> {
     }
 
     agent_handle.await??;
-    println!();
     Ok(())
 }
 
@@ -522,7 +547,6 @@ async fn run_interactive(cli: &Cli, config: &Config) -> Result<()> {
     // Linear terminal mode — no TUI, just streaming text
     use rustyline::error::ReadlineError;
     use rustyline::DefaultEditor;
-    use std::io::Write;
 
     let mut rl = DefaultEditor::new()?;
 
@@ -555,25 +579,24 @@ async fn run_interactive(cli: &Cli, config: &Config) -> Result<()> {
         let prompt_input = input;
         let prompt_fut = agent.prompt(prompt_input);
 
-        // Drain events while prompt runs — linear streaming to stdout
-        let mut needs_newline = false; // track if we need \n before tool output
+        // Drain events while prompt runs — buffer text, render with termimad at breaks
+        let skin = render::make_skin();
+        let mut text_buffer = String::new();
         let drain_fut = async {
             loop {
                 match event_rx.recv().await {
                     Some(AgentEvent::MessageUpdate {
                         event: ChatEvent::TextDelta { text },
                     }) => {
-                        print!("{text}");
-                        let _ = std::io::stdout().flush();
-                        needs_newline = !text.ends_with('\n');
+                        text_buffer.push_str(&text);
                     }
                     Some(AgentEvent::ToolExecutionStart { tool_name, .. }) => {
-                        if needs_newline {
-                            println!();
-                            needs_newline = false;
+                        if !text_buffer.is_empty() {
+                            skin.print_text(&text_buffer);
+                            text_buffer.clear();
                         }
                         // Tools go to stderr so they don't interfere with text flow
-                        eprintln!("\x1b[33m  ▸ {tool_name}\x1b[0m");
+                        render::render_tool_start(&tool_name);
                     }
                     Some(AgentEvent::ToolExecutionEnd {
                         tool_name, result, ..
@@ -586,21 +609,12 @@ async fn run_interactive(cli: &Cli, config: &Config) -> Result<()> {
                             })
                             .collect::<Vec<_>>()
                             .join("");
-                        let first_line = text.lines().next().unwrap_or("");
-                        let truncated = if first_line.chars().count() > 80 {
-                            format!("{}...", first_line.chars().take(80).collect::<String>())
-                        } else {
-                            first_line.to_string()
-                        };
-                        if result.is_error {
-                            eprintln!("\x1b[31m  ✗ [{tool_name}] {truncated}\x1b[0m");
-                        } else {
-                            eprintln!("\x1b[2m  ✓ [{tool_name}] {truncated}\x1b[0m");
-                        }
+                        render::render_tool_end(&tool_name, &text, result.is_error);
                     }
                     Some(AgentEvent::AgentEnd { stop_reason }) => {
-                        if needs_newline {
-                            println!();
+                        if !text_buffer.is_empty() {
+                            skin.print_text(&text_buffer);
+                            text_buffer.clear();
                         }
                         if stop_reason == StopReason::Error {
                             eprintln!("\x1b[31mError.\x1b[0m");

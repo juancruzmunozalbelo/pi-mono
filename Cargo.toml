@@ -54,6 +54,7 @@ bytes = "1"
 dirs = "6"
 pulldown-cmark = "0.12"
 syntect = { version = "5", default-features = false, features = ["default-fancy"] }
+termimad = "0.30"
 
 [profile.release]
 strip = true
