@@ -13,8 +13,6 @@ use tokio_util::sync::CancellationToken;
 
 use pi_tools::Tool; // needed to call .execute()
 
-use crate::spawn_agent::SpawnAgentTool;
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -159,7 +157,7 @@ fn reflection_prompt(iteration: u32, max: u32) -> String {
 /// - `max_iterations` is reached.
 pub async fn run_ralph_loop(
     name: &str,
-    spawn_tool: &SpawnAgentTool,
+    spawn_tool: &dyn Tool,
     cancel: CancellationToken,
 ) -> anyhow::Result<()> {
     // ── 1. Load existing state or error if no task file exists ───────────────
@@ -372,7 +370,7 @@ pub fn parse_ralph_start_args(args: &str) -> anyhow::Result<RalphStartArgs> {
 /// Handle `/ralph start <name> [--max N] [--reflect N]`
 pub async fn handle_ralph_start(
     args: &str,
-    spawn_tool: &SpawnAgentTool,
+    spawn_tool: &dyn Tool,
     cancel: CancellationToken,
 ) -> anyhow::Result<()> {
     let parsed = parse_ralph_start_args(args)?;
@@ -918,52 +916,216 @@ mod tests {
         );
     }
 
-    // ── state_completed_cannot_restart ────────────────────────────────────────
+    // ── Integration tests with mock tool ────────────────────────────────────
 
-    #[test]
-    fn state_completed_cannot_restart() {
-        let tmp = tempfile::tempdir().unwrap();
-        let _lock = TEST_LOCK.lock().unwrap();
-        with_tmpdir(tmp.path(), || {
-            let mut state = make_state("doneloop");
-            state.status = RalphStatus::Completed;
-            save_state(&state)?;
+    use async_trait::async_trait;
+    use pi_tools::{ToolContent, ToolResult};
+    use std::sync::atomic::{AtomicU32, Ordering};
 
-            // load_state returns the completed state; run_ralph_loop bails on it.
-            let loaded = load_state("doneloop")?.unwrap();
-            assert_eq!(loaded.status, RalphStatus::Completed);
-            // The check in run_ralph_loop: status is neither Paused nor Active → bail.
-            // We replicate that guard here without spawning a real agent.
-            let is_restartable = matches!(loaded.status, RalphStatus::Paused | RalphStatus::Active);
-            assert!(!is_restartable, "Completed loop must not be restartable");
-            Ok(())
-        })
-        .unwrap();
+    /// A mock tool that returns a configurable response.
+    /// Completes on the Nth call by including the DONE marker.
+    struct MockSpawnTool {
+        complete_on_iteration: u32,
+        call_count: AtomicU32,
     }
 
-    // ── task_file_empty_content ───────────────────────────────────────────────
+    impl MockSpawnTool {
+        fn new(complete_on: u32) -> Self {
+            Self {
+                complete_on_iteration: complete_on,
+                call_count: AtomicU32::new(0),
+            }
+        }
+    }
 
-    #[test]
-    fn task_file_empty_content() {
+    #[async_trait]
+    impl Tool for MockSpawnTool {
+        fn name(&self) -> &str {
+            "spawn_agent"
+        }
+        fn description(&self) -> &str {
+            "mock"
+        }
+        fn schema(&self) -> serde_json::Value {
+            serde_json::json!({})
+        }
+        async fn execute(
+            &self,
+            _params: serde_json::Value,
+            _cancel: tokio_util::sync::CancellationToken,
+        ) -> ToolResult {
+            let n = self.call_count.fetch_add(1, Ordering::SeqCst) + 1;
+            let text = if n >= self.complete_on_iteration {
+                format!("Iteration {n} done. <complete>DONE</complete>")
+            } else {
+                format!("Iteration {n} progress...")
+            };
+            ToolResult {
+                content: vec![ToolContent::Text { text }],
+                is_error: false,
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn run_ralph_loop_completes_on_marker() {
         let tmp = tempfile::tempdir().unwrap();
         let _lock = TEST_LOCK.lock().unwrap();
-        with_tmpdir(tmp.path(), || {
-            // Write a state that references a task file with empty content.
-            let mut state = make_state("emptyloop");
-            state.task_file = ".ralph/emptyloop/task.md".to_string();
-            std::fs::create_dir_all(".ralph/emptyloop")?;
-            std::fs::write(".ralph/emptyloop/task.md", "")?;
-            save_state(&state)?;
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
 
-            // save_state and load_state must not crash for empty task file.
-            let loaded = load_state("emptyloop")?.unwrap();
-            assert_eq!(loaded.name, "emptyloop");
+        // Setup task file
+        std::fs::create_dir_all(".ralph/integ/").unwrap();
+        std::fs::write(".ralph/integ/task.md", "do something").unwrap();
 
-            // Reading the (empty) task file should also succeed without panic.
-            let content = std::fs::read_to_string(&loaded.task_file)?;
-            assert_eq!(content, "", "empty task file should read as empty string");
-            Ok(())
-        })
-        .unwrap();
+        let mock = MockSpawnTool::new(3); // complete on 3rd iteration
+        let cancel = tokio_util::sync::CancellationToken::new();
+
+        let result = run_ralph_loop("integ", &mock, cancel).await;
+        assert!(result.is_ok(), "loop should complete: {result:?}");
+
+        let state = load_state("integ").unwrap().unwrap();
+        assert_eq!(state.status, RalphStatus::Completed, "should be Completed");
+        assert_eq!(state.iteration, 3, "should have run 3 iterations");
+
+        let _ = std::env::set_current_dir(&original);
+    }
+
+    #[tokio::test]
+    async fn run_ralph_loop_hits_max_iterations() {
+        let tmp = tempfile::tempdir().unwrap();
+        let _lock = TEST_LOCK.lock().unwrap();
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+
+        // Setup with max_iterations=3, but mock never completes
+        std::fs::create_dir_all(".ralph/maxloop/").unwrap();
+        std::fs::write(".ralph/maxloop/task.md", "infinite task").unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        let initial = RalphState {
+            name: "maxloop".to_string(),
+            status: RalphStatus::Paused,
+            iteration: 0,
+            max_iterations: 3,
+            reflection_interval: 5,
+            task_file: ".ralph/maxloop/task.md".to_string(),
+            created_at: now.clone(),
+            updated_at: now,
+        };
+        save_state(&initial).unwrap();
+
+        let mock = MockSpawnTool::new(999); // never completes
+        let cancel = tokio_util::sync::CancellationToken::new();
+
+        let result = run_ralph_loop("maxloop", &mock, cancel).await;
+        assert!(result.is_ok());
+
+        let state = load_state("maxloop").unwrap().unwrap();
+        assert_eq!(state.status, RalphStatus::MaxIterationsReached);
+        assert_eq!(state.iteration, 3);
+
+        let _ = std::env::set_current_dir(&original);
+    }
+
+    #[tokio::test]
+    async fn run_ralph_loop_cancellation() {
+        let tmp = tempfile::tempdir().unwrap();
+        let _lock = TEST_LOCK.lock().unwrap();
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+
+        std::fs::create_dir_all(".ralph/cancelloop/").unwrap();
+        std::fs::write(".ralph/cancelloop/task.md", "task").unwrap();
+
+        let mock = MockSpawnTool::new(999);
+        let cancel = tokio_util::sync::CancellationToken::new();
+        cancel.cancel(); // cancel immediately
+
+        let result = run_ralph_loop("cancelloop", &mock, cancel).await;
+        assert!(result.is_ok());
+
+        let state = load_state("cancelloop").unwrap().unwrap();
+        assert_eq!(state.status, RalphStatus::Paused, "cancelled → Paused");
+
+        let _ = std::env::set_current_dir(&original);
+    }
+
+    #[tokio::test]
+    async fn run_ralph_loop_completed_cannot_restart() {
+        let tmp = tempfile::tempdir().unwrap();
+        let _lock = TEST_LOCK.lock().unwrap();
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+
+        let mut state = make_state("doneloop");
+        state.status = RalphStatus::Completed;
+        save_state(&state).unwrap();
+
+        let mock = MockSpawnTool::new(1);
+        let cancel = tokio_util::sync::CancellationToken::new();
+
+        let result = run_ralph_loop("doneloop", &mock, cancel).await;
+        assert!(result.is_err(), "completed loop should fail to restart");
+        let msg = format!("{}", result.unwrap_err());
+        assert!(msg.contains("cannot be started again"), "error: {msg}");
+
+        let _ = std::env::set_current_dir(&original);
+    }
+
+    #[tokio::test]
+    async fn run_ralph_loop_no_task_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let _lock = TEST_LOCK.lock().unwrap();
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+
+        // Don't create task.md
+        let mock = MockSpawnTool::new(1);
+        let cancel = tokio_util::sync::CancellationToken::new();
+
+        let result = run_ralph_loop("nofile", &mock, cancel).await;
+        assert!(result.is_err(), "missing task.md should error");
+        let msg = format!("{}", result.unwrap_err());
+        assert!(msg.contains("Task file not found"), "error: {msg}");
+
+        let _ = std::env::set_current_dir(&original);
+    }
+
+    #[tokio::test]
+    async fn run_ralph_loop_resume_from_paused() {
+        let tmp = tempfile::tempdir().unwrap();
+        let _lock = TEST_LOCK.lock().unwrap();
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+
+        // Create a paused state at iteration 2
+        std::fs::create_dir_all(".ralph/resumeloop/").unwrap();
+        std::fs::write(".ralph/resumeloop/task.md", "resume task").unwrap();
+        let now = chrono::Utc::now().to_rfc3339();
+        let paused = RalphState {
+            name: "resumeloop".to_string(),
+            status: RalphStatus::Paused,
+            iteration: 2,
+            max_iterations: 5,
+            reflection_interval: 5,
+            task_file: ".ralph/resumeloop/task.md".to_string(),
+            created_at: now.clone(),
+            updated_at: now,
+        };
+        save_state(&paused).unwrap();
+
+        // Mock completes on call 2 (which is iteration 4, since we resume from 2)
+        let mock = MockSpawnTool::new(2);
+        let cancel = tokio_util::sync::CancellationToken::new();
+
+        let result = run_ralph_loop("resumeloop", &mock, cancel).await;
+        assert!(result.is_ok());
+
+        let state = load_state("resumeloop").unwrap().unwrap();
+        assert_eq!(state.status, RalphStatus::Completed);
+        assert_eq!(state.iteration, 4, "resumed from 2, completed on 4th");
+
+        let _ = std::env::set_current_dir(&original);
     }
 }
