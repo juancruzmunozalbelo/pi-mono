@@ -1,0 +1,7 @@
+{
+    "task_id": 12,
+    "task": "Create a git repository at /tmp/bench/repo with an initial commit containing a README",
+    "output": "\n",
+    "elapsed_seconds": 32,
+    "model": "default"
+}

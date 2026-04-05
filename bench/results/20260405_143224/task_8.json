@@ -1,0 +1,7 @@
+{
+    "task_id": 8,
+    "task": "Write a Python script /tmp/bench/sort.py that reads lines from stdin, sorts them, and prints them",
+    "output": "Here\u2019s a simple `sort.py` script:\n\n```python\n#!/usr/bin/env python3\nimport sys\n\ndef main():\n    lines = sys.stdin.readlines()\n    lines.sort()\n    sys.stdout.writelines(lines)\n\nif __name__ == \"__main__\":\n    main()\n```\n\nIf you want, I can also provide a version that strips trailing newlines more carefully or sorts case-insensitively.\n",
+    "elapsed_seconds": 235,
+    "model": "default"
+}

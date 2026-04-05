@@ -1,0 +1,7 @@
+{
+    "task_id": 15,
+    "task": "Write a Rust program /tmp/bench/wordcount.rs that counts words in a file passed as argument",
+    "output": "\n",
+    "elapsed_seconds": 43,
+    "model": "default"
+}

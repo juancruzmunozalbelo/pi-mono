@@ -222,11 +222,12 @@ impl App {
 
             // Enter: handled in input mode.
             KeyCode::Enter if self.focus == Focus::Input => {
-                if key.modifiers.contains(KeyModifiers::CONTROL) {
-                    // Ctrl+Enter: submit.
-                    self.submit_input();
+                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                    // Shift+Enter: insert newline.
+                    self.input.newline();
                 } else {
-                    // Plain Enter: insert newline.
+                    // Enter or Ctrl+Enter: submit.
+                    self.submit_input();
                     self.input.newline();
                 }
             }
@@ -297,10 +298,14 @@ impl App {
                 self.status.is_streaming = true;
                 self.streaming_text.clear();
                 self.thinking_text.clear();
+                // Show loading indicator
+                self.messages
+                    .push(DisplayMessage::Loading("Thinking...".to_string()));
             }
 
             AgentEvent::MessageStart { message: _ } => {
-                // A new assistant message began streaming.
+                // Remove loading indicator when content starts
+                self.remove_loading();
             }
 
             AgentEvent::MessageUpdate { event } => {
@@ -325,6 +330,7 @@ impl App {
                 tool_call_id,
                 tool_name,
             } => {
+                self.remove_loading();
                 self.messages.push(DisplayMessage::ToolCall {
                     name: tool_name.clone(),
                     id: tool_call_id.clone(),
@@ -461,6 +467,12 @@ impl App {
             *self.messages.last_mut().unwrap() = DisplayMessage::Assistant(text);
         }
         self.streaming_text.clear();
+    }
+
+    /// Remove loading indicator from messages.
+    fn remove_loading(&mut self) {
+        self.messages
+            .retain(|m| !matches!(m, DisplayMessage::Loading(_)));
     }
 }
 

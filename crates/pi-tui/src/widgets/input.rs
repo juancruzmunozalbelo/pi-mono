@@ -128,7 +128,7 @@ impl<'a> Widget for InputWidget<'a> {
         };
 
         let title = if self.focused {
-            " Input (Ctrl+Enter to send, Enter for newline) "
+            " Input (Enter to send, Shift+Enter for newline) "
         } else {
             " Input (Tab to focus) "
         };

@@ -1,0 +1,7 @@
+{
+    "task_id": 14,
+    "task": "Create a Python HTTP server script at /tmp/bench/server.py that serves files from the current directory on port 8080",
+    "output": "\n",
+    "elapsed_seconds": 38,
+    "model": "default"
+}

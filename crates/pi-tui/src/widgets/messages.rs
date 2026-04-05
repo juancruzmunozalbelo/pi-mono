@@ -31,6 +31,7 @@ pub enum DisplayMessage {
         collapsed: bool,
     },
     StreamingAssistant(String),
+    Loading(String),
     Error(String),
 }
 
@@ -82,8 +83,22 @@ impl<'a> MessagesWidget<'a> {
                 DisplayMessage::Assistant(text) | DisplayMessage::StreamingAssistant(text) => {
                     let renderer = markdown::MarkdownRenderer::new(self.theme);
                     let md_lines = renderer.render(text, 80);
+                    let base = self.theme.assistant_style;
                     for line in md_lines {
-                        lines.push(line);
+                        // Set the LINE style so all spans inherit it
+                        let mut styled_line = line.style(base);
+                        // Also patch each span that has no fg
+                        styled_line.spans = styled_line
+                            .spans
+                            .into_iter()
+                            .map(|mut span| {
+                                if span.style.fg.is_none() {
+                                    span.style.fg = base.fg;
+                                }
+                                span
+                            })
+                            .collect();
+                        lines.push(styled_line);
                     }
                     lines.push(Line::default());
                 }
@@ -151,6 +166,27 @@ impl<'a> MessagesWidget<'a> {
                             )]));
                         }
                     }
+                    lines.push(Line::default());
+                }
+
+                DisplayMessage::Loading(msg) => {
+                    // Animated dots based on time
+                    let dots = match (std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis()
+                        / 500)
+                        % 4
+                    {
+                        0 => "   ",
+                        1 => ".  ",
+                        2 => ".. ",
+                        _ => "...",
+                    };
+                    lines.push(Line::from(vec![Span::styled(
+                        format!("⏳ {msg}{dots}"),
+                        self.theme.thinking_style,
+                    )]));
                     lines.push(Line::default());
                 }
 

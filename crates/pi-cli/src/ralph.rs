@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Ralph-Wiggum — long-running iterative task loop.
 //!
 //! Each loop delegates individual iterations to an ephemeral sub-agent via

@@ -200,7 +200,8 @@ fn tools_to_responses(tools: &[ToolDefinition]) -> Vec<Value> {
                 "type": "function",
                 "name": t.name,
                 "description": t.description,
-                "parameters": t.parameters
+                "parameters": t.parameters,
+                "strict": false
             })
         })
         .collect()
@@ -324,6 +325,14 @@ fn parse_responses_sse_chunk(
     let mut events: Vec<Result<ChatEvent, ProviderError>> = Vec::new();
 
     match event_type {
+        // ── Stream start ─────────────────────────────────────────────────
+        "response.created" => {
+            events.push(Ok(ChatEvent::Start));
+        }
+
+        // ── In progress — no action needed ───────────────────────────────
+        "response.in_progress" => {}
+
         // ── Text ────────────────────────────────────────────────────────────
         "response.content_part.added" => {
             // A new content part appeared on a message output item.
@@ -431,12 +440,22 @@ fn parse_responses_sse_chunk(
                 total: cost_input + cost_output,
             };
 
-            // Determine stop reason from response status
+            // Determine stop reason: check for function_call output items first,
+            // since the API reports status "completed" even when tool calls were made.
+            let output_items = v["response"]["output"].as_array();
+            let has_tool_calls = output_items
+                .map(|items| items.iter().any(|item| item["type"] == "function_call"))
+                .unwrap_or(false);
+
             let status = v["response"]["status"].as_str().unwrap_or("completed");
-            let stop_reason = match status {
-                "completed" => StopReason::Stop,
-                "incomplete" => StopReason::Length,
-                _ => StopReason::Stop,
+            let stop_reason = if has_tool_calls {
+                StopReason::ToolUse
+            } else {
+                match status {
+                    "completed" => StopReason::Stop,
+                    "incomplete" => StopReason::Length,
+                    _ => StopReason::Stop,
+                }
             };
 
             events.push(Ok(ChatEvent::Done {

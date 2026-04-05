@@ -27,7 +27,7 @@ impl Default for Theme {
             user_style: Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
-            assistant_style: Style::default().fg(Color::White),
+            assistant_style: Style::default().fg(Color::LightGreen),
             tool_name_style: Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),

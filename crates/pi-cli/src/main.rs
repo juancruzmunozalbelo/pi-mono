@@ -10,6 +10,7 @@ mod cli;
 mod config;
 mod escalate;
 mod guidance;
+mod openspec_tool;
 mod ralph;
 mod session;
 mod spawn_agent;
@@ -302,6 +303,7 @@ fn create_basic_tools() -> Vec<Arc<dyn pi_tools::Tool>> {
         Arc::new(pi_tools::GrepTool),
         Arc::new(pi_tools::FindTool),
         Arc::new(pi_tools::LsTool),
+        Arc::new(openspec_tool::OpenSpecTool),
     ]
 }
 
@@ -460,23 +462,57 @@ async fn run_interactive(cli: &Cli, config: &Config) -> Result<()> {
         is_streaming: false,
         error_message: None,
     };
-    let agent = Agent::new(agent_config, agent_state);
+    let mut agent = Agent::new(agent_config, agent_state);
+    let event_rx = agent
+        .take_event_receiver()
+        .expect("event receiver available");
 
-    // pi-tui is currently a stub (lib.rs has no public API).
-    // Fall back to a simple REPL until the TUI is wired up.
-    run_repl(agent, provider, cli, config).await
+    // Channel for user input from TUI → agent
+    let (user_tx, mut user_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+
+    let model_display = {
+        let state = agent.state().await;
+        let sub_info = if config.sub_agent.is_some() {
+            let sub_model = config
+                .sub_agent
+                .as_ref()
+                .and_then(|s| s.model.as_deref())
+                .unwrap_or("MiniMax-M2.7-highspeed");
+            format!(" | sub: {sub_model}")
+        } else {
+            String::new()
+        };
+        format!("{}{sub_info}", state.model.id)
+    };
+
+    // Spawn agent loop: listens for user messages and runs prompts
+    let agent_handle = tokio::spawn(async move {
+        while let Some(input) = user_rx.recv().await {
+            if let Err(e) = agent.prompt(input).await {
+                eprintln!("Agent error: {e}");
+            }
+        }
+    });
+
+    // Run TUI (blocks until quit)
+    let theme = pi_tui::Theme::default();
+    let tui_result = pi_tui::run_tui(event_rx, user_tx, theme, model_display).await;
+
+    agent_handle.abort();
+    tui_result
 }
 
+#[allow(dead_code)]
 async fn run_repl(
     mut agent: Agent,
     provider: Arc<dyn pi_ai::LlmProvider>,
     cli: &Cli,
     config: &Config,
 ) -> Result<()> {
-    use std::io::{self, BufRead, Write};
+    use rustyline::error::ReadlineError;
+    use rustyline::DefaultEditor;
 
-    let stdin = io::stdin();
-    let stdout = io::stdout();
+    let mut rl = DefaultEditor::new()?;
 
     // Re-take the event receiver so we can print streaming output.
     let mut event_rx = agent
@@ -511,20 +547,28 @@ async fn run_repl(
     let mut pending_model: Option<String> = None;
 
     loop {
-        {
-            let mut out = stdout.lock();
-            write!(out, "> ")?;
-            out.flush()?;
-        }
+        let input = match rl.readline("> ") {
+            Ok(line) => {
+                let trimmed = line.trim().to_string();
+                if !trimmed.is_empty() {
+                    let _ = rl.add_history_entry(&trimmed);
+                }
+                trimmed
+            }
+            Err(ReadlineError::Interrupted) => {
+                // Ctrl-C
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                // Ctrl-D
+                break;
+            }
+            Err(e) => {
+                eprintln!("Input error: {e}");
+                break;
+            }
+        };
 
-        let mut line = String::new();
-        let bytes_read = stdin.lock().read_line(&mut line)?;
-        if bytes_read == 0 {
-            // EOF
-            break;
-        }
-
-        let input = line.trim().to_string();
         if input.is_empty() {
             continue;
         }
@@ -634,6 +678,7 @@ async fn run_repl(
 }
 
 /// Drain events, printing text deltas and updating tab status until AgentEnd.
+#[allow(dead_code)]
 async fn drain_events_with_tab(
     event_rx: &mut tokio::sync::mpsc::UnboundedReceiver<AgentEvent>,
     tab: &mut tab_status::TabStatus,

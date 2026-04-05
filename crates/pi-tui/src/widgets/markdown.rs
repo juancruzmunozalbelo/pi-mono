@@ -15,6 +15,7 @@ use syntect::util::LinesWithEndings;
 pub struct MarkdownRenderer {
     syntax_set: SyntaxSet,
     syntect_theme: SyntectTheme,
+    base_style: Style,
     heading_style: Style,
     bold_style: Style,
     italic_style: Style,
@@ -34,6 +35,7 @@ impl MarkdownRenderer {
         Self {
             syntax_set,
             syntect_theme,
+            base_style: theme.assistant_style,
             heading_style: theme
                 .assistant_style
                 .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
@@ -186,7 +188,7 @@ impl MarkdownRenderer {
                     let style = if in_blockquote {
                         self.quote_style
                     } else {
-                        style_stack.last().copied().unwrap_or_default()
+                        style_stack.last().copied().unwrap_or(self.base_style)
                     };
 
                     current_spans.push(Span::styled(s, style));

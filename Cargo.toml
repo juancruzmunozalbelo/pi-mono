@@ -42,6 +42,9 @@ crossterm = { version = "0.28", features = ["event-stream"] }
 anyhow = "1"
 thiserror = "2"
 
+# Input
+rustyline = "15"
+
 # Utilities
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }

@@ -323,6 +323,10 @@ async fn apply_after_hook(
 /// Anything beyond this is truncated with a notice.
 const MAX_TOOL_RESULT_BYTES: usize = 30_000;
 
+/// Maximum number of consecutive tool-call turns before forcing a stop.
+/// Prevents infinite tool loops.
+const MAX_TOOL_TURNS: u32 = 20;
+
 /// Truncate tool result text to stay within budget.
 fn truncate_tool_result(result: ToolResult) -> ToolResult {
     ToolResult {
@@ -391,10 +395,24 @@ pub async fn run_loop(agent: &mut Agent) -> Result<(), AgentError> {
 
     let mut pending_messages: Vec<Message> = agent.steering_queue.drain();
     let mut final_stop_reason = StopReason::Stop;
+    let mut tool_turn_count: u32 = 0;
 
     'outer: loop {
         // ── Inner loop: one provider call per iteration ───────────────────
         'inner: loop {
+            // Guard: prevent infinite tool loops
+            if tool_turn_count >= MAX_TOOL_TURNS {
+                tracing::warn!("Hit max tool turns ({MAX_TOOL_TURNS}), forcing stop");
+                emit(
+                    &agent.event_tx,
+                    AgentEvent::TurnEnd {
+                        error: Some(format!("Reached maximum tool turns ({MAX_TOOL_TURNS})")),
+                    },
+                );
+                final_stop_reason = StopReason::Stop;
+                break 'inner;
+            }
+
             // Check for cancellation before starting a new turn.
             if agent.cancel.is_cancelled() {
                 emit(
@@ -555,6 +573,7 @@ pub async fn run_loop(agent: &mut Agent) -> Result<(), AgentError> {
             };
 
             push_tool_results(results, agent).await;
+            tool_turn_count += 1;
 
             emit(&agent.event_tx, AgentEvent::TurnEnd { error: None });
 

@@ -67,7 +67,10 @@ fn block_chars(block: &ContentBlock) -> u64 {
 /// Budget = `context_window - max_tokens`; trigger at `budget * threshold`.
 pub fn should_compact(messages: &[Message], model: &Model) -> bool {
     let estimated = estimate_tokens(messages);
-    let budget = model.context_window.saturating_sub(model.max_tokens);
+    // Cap effective context window at 60K to account for provider-side limits
+    // (e.g., Copilot may cap at 64K even if model advertises 128K)
+    let effective_window = model.context_window.min(60_000);
+    let budget = effective_window.saturating_sub(model.max_tokens.min(16_000));
     let trigger = (budget as f64 * 0.75) as u64;
     estimated > trigger
 }
@@ -193,29 +196,40 @@ pub async fn compact_messages(
     let to_compact = &messages[..split];
     let to_keep = &messages[split..];
 
-    let summary_prompt = build_summarization_prompt(to_compact);
+    // If the conversation is severely over budget (>2x), use fallback summary
+    // without calling the LLM (the summarization call itself would fail).
+    let budget = model.context_window.saturating_sub(model.max_tokens);
+    let estimated = estimate_tokens(to_compact);
+    let summary_text = if estimated > budget * 2 {
+        tracing::warn!(
+            "Context severely over budget ({estimated} >> {budget}), using fallback summary"
+        );
+        fallback_summary(to_compact)
+    } else {
+        let summary_prompt = build_summarization_prompt(to_compact);
 
-    let request = ChatRequest {
-        model: model.clone(),
-        messages: vec![Message::User {
-            content: vec![ContentBlock::Text {
-                text: summary_prompt,
+        let request = ChatRequest {
+            model: model.clone(),
+            messages: vec![Message::User {
+                content: vec![ContentBlock::Text {
+                    text: summary_prompt,
+                }],
             }],
-        }],
-        system_prompt: Some(
-            "You are a conversation summarizer. Be concise and factual.".to_string(),
-        ),
-        tools: vec![],
-        thinking_level: None,
-        max_tokens: Some(2048),
-        temperature: Some(0.3),
-    };
+            system_prompt: Some(
+                "You are a conversation summarizer. Be concise and factual.".to_string(),
+            ),
+            tools: vec![],
+            thinking_level: None,
+            max_tokens: Some(2048),
+            temperature: Some(0.3),
+        };
 
-    let summary_text = match provider.chat(request).await {
-        Ok(stream) => collect_text_from_stream(stream).await,
-        Err(e) => {
-            tracing::warn!("Compaction failed (provider error): {e}. Using fallback.");
-            fallback_summary(to_compact)
+        match provider.chat(request).await {
+            Ok(stream) => collect_text_from_stream(stream).await,
+            Err(e) => {
+                tracing::warn!("Compaction failed (provider error): {e}. Using fallback.");
+                fallback_summary(to_compact)
+            }
         }
     };
 

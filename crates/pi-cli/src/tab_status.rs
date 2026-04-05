@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use pi_agent::AgentEvent;
 use std::io::Write;
 use std::time::{Duration, Instant};
