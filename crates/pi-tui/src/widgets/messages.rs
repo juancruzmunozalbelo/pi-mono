@@ -225,11 +225,15 @@ impl<'a> StatefulWidget for MessagesWidget<'a> {
     type State = MessagesState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        let lines = self.build_lines();
+        let mut lines = self.build_lines();
+        let visible = area.height.saturating_sub(2) as usize; // borders
 
-        // Auto-scroll disabled for now — always show from top (scroll=0).
-        // Users can PgDown manually. TODO: fix visual line calculation.
-        let _ = state.auto_scroll; // acknowledge field
+        // Auto-scroll: keep only the last `visible` lines so Paragraph
+        // renders from the bottom without needing scroll offset math.
+        if state.auto_scroll && lines.len() > visible {
+            let skip = lines.len() - visible;
+            lines = lines.into_iter().skip(skip).collect();
+        }
 
         let paragraph = Paragraph::new(lines)
             .block(

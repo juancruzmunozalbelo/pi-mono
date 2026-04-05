@@ -46,15 +46,18 @@ impl<'a> Widget for StatusBarWidget<'a> {
             None => "new session ".to_string(),
         };
 
-        // Build a line that fills the full width.
+        // Build a line that fills the full width (use char count, not byte len).
         let total_width = area.width as usize;
-        let center_start = total_width.saturating_sub(right.len()) / 2;
-        let left_pad = center_start.saturating_sub(left.len());
+        let left_chars = left.chars().count();
+        let center_chars = center.chars().count();
+        let right_chars = right.chars().count();
+        let center_start = total_width.saturating_sub(right_chars) / 2;
+        let left_pad = center_start.saturating_sub(left_chars);
         let right_pad = total_width
-            .saturating_sub(left.len())
+            .saturating_sub(left_chars)
             .saturating_sub(left_pad)
-            .saturating_sub(center.len())
-            .saturating_sub(right.len());
+            .saturating_sub(center_chars)
+            .saturating_sub(right_chars);
 
         let composed = format!(
             "{}{}{}{}{}",
@@ -65,9 +68,9 @@ impl<'a> Widget for StatusBarWidget<'a> {
             right
         );
 
-        // Truncate to area width if needed.
-        let composed = if composed.len() > total_width {
-            composed[..total_width].to_string()
+        // Truncate to area width (char-safe).
+        let composed = if composed.chars().count() > total_width {
+            composed.chars().take(total_width).collect::<String>()
         } else {
             // Pad to full width.
             format!("{:<width$}", composed, width = total_width)

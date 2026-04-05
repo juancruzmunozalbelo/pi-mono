@@ -317,6 +317,12 @@ fn parse_responses_sse_chunk(
         None => return vec![],
     };
 
+    // Debug: log all SSE events for diagnosis
+    tracing::debug!(
+        "SSE event: type={event_type} data={}",
+        &event.data[..event.data.len().min(200)]
+    );
+
     let v: Value = match serde_json::from_str(&event.data) {
         Ok(v) => v,
         Err(e) => return vec![Err(ProviderError::Json(e))],
@@ -388,30 +394,27 @@ fn parse_responses_sse_chunk(
         }
 
         "response.function_call_arguments.delta" => {
-            let id = v["call_id"].as_str().unwrap_or("").to_owned();
-            let name = String::new(); // name not repeated in delta events
-            if let Some(delta) = v["delta"].as_str() {
-                if !delta.is_empty() {
-                    events.push(Ok(ChatEvent::ToolCallDelta {
-                        id,
-                        name,
-                        arguments_delta: delta.to_owned(),
-                    }));
-                }
-            }
+            // Skip — we get the final args from output_item.done which has call_id
         }
 
         "response.function_call_arguments.done" => {
-            let id = v["call_id"].as_str().unwrap_or("").to_owned();
-            let name = v["name"].as_str().unwrap_or("").to_owned();
-            let args_str = v["arguments"].as_str().unwrap_or("{}");
-            let arguments: Value =
-                serde_json::from_str(args_str).unwrap_or(Value::Object(Default::default()));
-            events.push(Ok(ChatEvent::ToolCallDone {
-                id,
-                name,
-                arguments,
-            }));
+            // Skip — we use output_item.done instead (has call_id + name + args)
+        }
+
+        "response.output_item.done" => {
+            let item_type = v["item"]["type"].as_str().unwrap_or("");
+            if item_type == "function_call" {
+                let id = v["item"]["call_id"].as_str().unwrap_or("").to_owned();
+                let name = v["item"]["name"].as_str().unwrap_or("").to_owned();
+                let args_str = v["item"]["arguments"].as_str().unwrap_or("{}");
+                let arguments: Value =
+                    serde_json::from_str(args_str).unwrap_or(Value::Object(Default::default()));
+                events.push(Ok(ChatEvent::ToolCallDone {
+                    id,
+                    name,
+                    arguments,
+                }));
+            }
         }
 
         // ── Completion ───────────────────────────────────────────────────
