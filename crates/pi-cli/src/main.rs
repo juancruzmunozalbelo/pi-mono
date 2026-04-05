@@ -495,14 +495,12 @@ async fn run_interactive(cli: &Cli, config: &Config) -> Result<()> {
         error_message: None,
     };
     let mut agent = Agent::new(agent_config, agent_state);
-    let event_rx = agent
+    let mut event_rx = agent
         .take_event_receiver()
         .expect("event receiver available");
 
-    // Channel for user input from TUI → agent
-    let (user_tx, mut user_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
-
-    let model_display = {
+    // Print banner
+    {
         let state = agent.state().await;
         let sub_info = if config.sub_agent.is_some() {
             let sub_model = config
@@ -514,24 +512,115 @@ async fn run_interactive(cli: &Cli, config: &Config) -> Result<()> {
         } else {
             String::new()
         };
-        format!("{}{sub_info}", state.model.id)
-    };
+        eprintln!(
+            "\x1b[36mPi v{}\x1b[0m — \x1b[33m{}{sub_info}\x1b[0m",
+            env!("CARGO_PKG_VERSION"),
+            state.model.id,
+        );
+    }
 
-    // Spawn agent loop: listens for user messages and runs prompts
-    let agent_handle = tokio::spawn(async move {
-        while let Some(input) = user_rx.recv().await {
-            if let Err(e) = agent.prompt(input).await {
-                eprintln!("Agent error: {e}");
+    // Linear terminal mode — no TUI, just streaming text
+    use rustyline::error::ReadlineError;
+    use rustyline::DefaultEditor;
+    use std::io::Write;
+
+    let mut rl = DefaultEditor::new()?;
+
+    loop {
+        let input = match rl.readline("\x1b[36m> \x1b[0m") {
+            Ok(line) => {
+                let trimmed = line.trim().to_string();
+                if !trimmed.is_empty() {
+                    let _ = rl.add_history_entry(&trimmed);
+                }
+                trimmed
             }
+            Err(ReadlineError::Interrupted | ReadlineError::Eof) => break,
+            Err(e) => {
+                eprintln!("Input error: {e}");
+                break;
+            }
+        };
+
+        if input.is_empty() {
+            continue;
         }
-    });
 
-    // Run TUI (blocks until quit)
-    let theme = pi_tui::Theme::default();
-    let tui_result = pi_tui::run_tui(event_rx, user_tx, theme, model_display).await;
+        // Handle slash commands
+        if input == "/quit" || input == "/exit" {
+            break;
+        }
 
-    agent_handle.abort();
-    tui_result
+        // Run prompt
+        let prompt_input = input;
+        let prompt_fut = agent.prompt(prompt_input);
+
+        // Drain events while prompt runs — linear streaming to stdout
+        let mut needs_newline = false; // track if we need \n before tool output
+        let drain_fut = async {
+            loop {
+                match event_rx.recv().await {
+                    Some(AgentEvent::MessageUpdate {
+                        event: ChatEvent::TextDelta { text },
+                    }) => {
+                        print!("{text}");
+                        let _ = std::io::stdout().flush();
+                        needs_newline = !text.ends_with('\n');
+                    }
+                    Some(AgentEvent::ToolExecutionStart { tool_name, .. }) => {
+                        if needs_newline {
+                            println!();
+                            needs_newline = false;
+                        }
+                        // Tools go to stderr so they don't interfere with text flow
+                        eprintln!("\x1b[33m  ▸ {tool_name}\x1b[0m");
+                    }
+                    Some(AgentEvent::ToolExecutionEnd {
+                        tool_name, result, ..
+                    }) => {
+                        let text: String = result
+                            .content
+                            .iter()
+                            .map(|c| match c {
+                                pi_tools::ToolContent::Text { text } => text.as_str(),
+                            })
+                            .collect::<Vec<_>>()
+                            .join("");
+                        let first_line = text.lines().next().unwrap_or("");
+                        let truncated = if first_line.chars().count() > 80 {
+                            format!("{}...", first_line.chars().take(80).collect::<String>())
+                        } else {
+                            first_line.to_string()
+                        };
+                        if result.is_error {
+                            eprintln!("\x1b[31m  ✗ [{tool_name}] {truncated}\x1b[0m");
+                        } else {
+                            eprintln!("\x1b[2m  ✓ [{tool_name}] {truncated}\x1b[0m");
+                        }
+                    }
+                    Some(AgentEvent::AgentEnd { stop_reason }) => {
+                        if needs_newline {
+                            println!();
+                        }
+                        if stop_reason == StopReason::Error {
+                            eprintln!("\x1b[31mError.\x1b[0m");
+                        }
+                        break;
+                    }
+                    Some(_) => {}
+                    None => break,
+                }
+            }
+        };
+
+        let (prompt_result, _) = tokio::join!(prompt_fut, drain_fut);
+        if let Err(e) = prompt_result {
+            eprintln!("\x1b[31mError: {e}\x1b[0m");
+        }
+        println!();
+    }
+
+    Ok(())
 }
 
 #[allow(dead_code)]
