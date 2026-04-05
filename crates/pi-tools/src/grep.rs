@@ -18,7 +18,8 @@ struct GrepParams {
     limit: Option<u64>,
 }
 
-const DEFAULT_LIMIT: usize = 100;
+const DEFAULT_LIMIT: usize = 50;
+const MAX_OUTPUT_BYTES: usize = 30_000;
 
 #[async_trait]
 impl Tool for GrepTool {
@@ -155,6 +156,14 @@ impl Tool for GrepTool {
                     if match_count >= limit {
                         output
                             .push_str(&format!("\n[Limit reached: showing first {limit} matches]"));
+                        break 'outer;
+                    }
+
+                    if output.len() >= MAX_OUTPUT_BYTES {
+                        output.push_str(&format!(
+                            "\n[Output truncated at {}KB after {match_count} matches]",
+                            MAX_OUTPUT_BYTES / 1024
+                        ));
                         break 'outer;
                     }
 

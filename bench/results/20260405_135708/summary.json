@@ -1,0 +1,10 @@
+{
+    "agent": "pi-rust",
+    "version": "pi 0.1.0",
+    "model": "default",
+    "total_tasks": 5,
+    "passed": 4,
+    "failed": 1,
+    "score": "80.0",
+    "timestamp": "2026-04-05T16:57:54Z"
+}

@@ -1,0 +1,7 @@
+{
+    "task_id": 13,
+    "task": "Write a shell script /tmp/bench/monitor.sh that shows CPU and memory usage",
+    "output": "I have created the script `/tmp/bench/monitor.sh` to display CPU and memory usage continuously. You can make it executable and run it to monitor your system's resource usage.\n",
+    "elapsed_seconds": 4,
+    "model": "default"
+}

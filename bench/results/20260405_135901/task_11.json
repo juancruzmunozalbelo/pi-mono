@@ -1,0 +1,7 @@
+{
+    "task_id": 11,
+    "task": "Write a grep-like tool in Python at /tmp/bench/pygrep.py that searches for a pattern in files",
+    "output": "I have developed a Python-based `grep`-like tool at `/tmp/bench/pygrep.py`. The script provides extensive command-line options and handles edge cases robustly. It can process files or directories for a specified regex pattern with options for line numbers, case-insensitivity, recursive search, and more.\n\nYou can use the tool with commands like:\n1. `python3 pygrep.py pattern file.txt`\n2. `python3 pygrep.py -n pattern file.txt`\n3. `python3 pygrep.py -ri pattern directory/`\n4. `echo \"text\" | python3 pygrep.py pattern`\n\nLet me know if you need any further refinements or tests!\n",
+    "elapsed_seconds": 108,
+    "model": "default"
+}

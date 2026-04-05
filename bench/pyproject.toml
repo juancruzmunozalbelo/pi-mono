@@ -1,0 +1,11 @@
+[project]
+name = "pi-rust-terminal-bench"
+version = "0.1.0"
+description = "Terminal-Bench 2.0 adapter for Pi Rust coding agent"
+requires-python = ">=3.10"
+dependencies = [
+    "harbor-bench>=0.3",
+]
+
+[project.entry-points."harbor.agents"]
+pi-rust = "pi_rust_bench:PiRustAgent"

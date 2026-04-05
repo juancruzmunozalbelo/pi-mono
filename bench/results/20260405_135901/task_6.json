@@ -1,0 +1,7 @@
+{
+    "task_id": 6,
+    "task": "Find all .rs files in the current directory recursively and count the total lines of code",
+    "output": "Error: Provider error: Provider error: HTTP 400 Bad Request: {\"error\":{\"message\":\"prompt token count of 101493 exceeds the limit of 64000\",\"code\":\"model_max_prompt_tokens_exceeded\"}}\n\n\nCaused by:\n    Provider error: HTTP 400 Bad Request: {\"error\":{\"message\":\"prompt token count of 101493 exceeds the limit of 64000\",\"code\":\"model_max_prompt_tokens_exceeded\"}}\n    \n",
+    "elapsed_seconds": 15,
+    "model": "default"
+}

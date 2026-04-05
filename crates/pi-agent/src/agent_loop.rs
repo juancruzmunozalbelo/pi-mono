@@ -319,10 +319,44 @@ async fn apply_after_hook(
     result
 }
 
+/// Maximum bytes for a single tool result text content.
+/// Anything beyond this is truncated with a notice.
+const MAX_TOOL_RESULT_BYTES: usize = 30_000;
+
+/// Truncate tool result text to stay within budget.
+fn truncate_tool_result(result: ToolResult) -> ToolResult {
+    ToolResult {
+        content: result
+            .content
+            .into_iter()
+            .map(|c| match c {
+                ToolContent::Text { text } if text.len() > MAX_TOOL_RESULT_BYTES => {
+                    // Find a valid UTF-8 boundary at or before MAX_TOOL_RESULT_BYTES
+                    let mut end = MAX_TOOL_RESULT_BYTES;
+                    while end > 0 && !text.is_char_boundary(end) {
+                        end -= 1;
+                    }
+                    let truncated = &text[..end];
+                    ToolContent::Text {
+                        text: format!(
+                            "{truncated}\n\n[Output truncated: showing first {}KB of {}KB]",
+                            MAX_TOOL_RESULT_BYTES / 1024,
+                            text.len() / 1024,
+                        ),
+                    }
+                }
+                other => other,
+            })
+            .collect(),
+        is_error: result.is_error,
+    }
+}
+
 /// Push tool results into state and emit MessageStart/MessageEnd per result.
 async fn push_tool_results(results: Vec<(String, String, ToolResult)>, agent: &Agent) {
     let mut state = agent.state.write().await;
     for (id, name, result) in results {
+        let result = truncate_tool_result(result);
         let content_blocks: Vec<ContentBlock> = result
             .content
             .iter()
