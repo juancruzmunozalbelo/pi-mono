@@ -559,7 +559,11 @@ pub async fn run_loop(agent: &mut Agent) -> Result<(), AgentError> {
                 "Turn {tool_turn_count}: stop_reason={:?}, tool_calls={}, msg_blocks={}",
                 msg_stop_reason,
                 tool_calls.len(),
-                if let Message::Assistant { content, .. } = &assistant_msg { content.len() } else { 0 },
+                if let Message::Assistant { content, .. } = &assistant_msg {
+                    content.len()
+                } else {
+                    0
+                },
             );
 
             if tool_calls.is_empty() {

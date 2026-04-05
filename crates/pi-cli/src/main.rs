@@ -13,6 +13,7 @@ mod guidance;
 mod openspec_tool;
 mod ralph;
 mod session;
+mod skills;
 mod spawn_agent;
 mod tab_status;
 mod usage;
@@ -326,12 +327,30 @@ fn create_tools(
     escalation_config: Option<Arc<EscalationConfig>>,
 ) -> Vec<Arc<dyn pi_tools::Tool>> {
     let mut tools: Vec<Arc<dyn pi_tools::Tool>> = create_basic_tools();
-    if let Some(cfg) = sub_agent_config {
-        tools.push(Arc::new(SpawnAgentTool::new(cfg)));
+    if let Some(ref cfg) = sub_agent_config {
+        tools.push(Arc::new(SpawnAgentTool::new(Arc::clone(cfg))));
     }
     if let Some(cfg) = escalation_config {
         tools.push(Arc::new(EscalateReviewTool::new(cfg)));
     }
+
+    // Load and register skills as tools
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let loaded_skills = skills::load_skills(&cwd);
+    if let Some(ref cfg) = sub_agent_config {
+        for skill in loaded_skills {
+            if !skill.disable_model_invocation {
+                tracing::info!("Registered skill tool: {}", skill.name);
+                tools.push(Arc::new(skills::SkillTool::new(skill, Arc::clone(cfg))));
+            }
+        }
+    } else if !loaded_skills.is_empty() {
+        tracing::warn!(
+            "Found {} skills but no sub-agent provider configured — skills disabled",
+            loaded_skills.len()
+        );
+    }
+
     tools
 }
 
