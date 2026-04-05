@@ -486,7 +486,25 @@ async fn run_repl(
     // Initialize tab status tracker
     let mut tab = tab_status::TabStatus::new();
 
-    println!("Pi agent — type your message, /model <id>, /ralph <cmd>, or Ctrl-C to quit.");
+    {
+        let state = agent.state().await;
+        let sub_info = if config.sub_agent.is_some() {
+            let sub_model = config
+                .sub_agent
+                .as_ref()
+                .and_then(|s| s.model.as_deref())
+                .unwrap_or("MiniMax-M2.7-highspeed");
+            format!(" | sub-agent: {sub_model}")
+        } else {
+            String::new()
+        };
+        println!(
+            "Pi v{} — model: {}{sub_info}",
+            env!("CARGO_PKG_VERSION"),
+            state.model.id,
+        );
+    }
+    println!("Type your message, /model <id>, /ralph <cmd>, or Ctrl-C to quit.");
 
     // Track the current model id for /model switching.
     // We rebuild the agent when the model changes so the new model id is used.
